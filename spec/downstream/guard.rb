@@ -19,9 +19,6 @@ Warning.singleton_class.prepend(
 
 require "ciborium/replace"
 
-mode = ENV.fetch("CIBORIUM_DOWNSTREAM_EXTENSIONS", "default")
-Ciborium::Compat.extensions = [] if mode == "none"
-
 RSpec.configure do |config|
   check = lambda do
     raise "CBOR is not Ciborium::Compat" unless CBOR.equal?(Ciborium::Compat)
@@ -36,7 +33,7 @@ RSpec.configure do |config|
   # Examples that fail for a documented deviation from the cbor gem. Each runs as pending, so an
   # entry that starts passing fails the run and gets removed.
   suite = ENV.fetch("CIBORIUM_DOWNSTREAM_SUITE")
-  expected = YAML.load_file(File.join(__dir__, "expected_failures.yml"), aliases: true).fetch(suite, {}).fetch(mode, {})
+  expected = YAML.load_file(File.join(__dir__, "expected_failures.yml")).fetch(suite, {})
   config.before do |example|
     reason = expected[example.full_description]
     pending(reason) if reason

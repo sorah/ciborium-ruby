@@ -1,3 +1,3 @@
 # Examples of downstream suites that fail against Ciborium::Compat, by full description, with the
-# reason each fails. Keyed by CIBORIUM_DOWNSTREAM_SUITE, then CIBORIUM_DOWNSTREAM_EXTENSIONS.
+# reason each fails. Keyed by CIBORIUM_DOWNSTREAM_SUITE.
 {}

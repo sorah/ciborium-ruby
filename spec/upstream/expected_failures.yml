@@ -4,5 +4,8 @@ default:
   "Ciborium::Compat Time": "tag 1 decodes to Tagged unless the time extension is allowlisted"
   "Ciborium::Compat URI": "tag 32 decodes to Tagged unless the uri extension is allowlisted"
   "Ciborium::Compat regexp": "tag 35 decodes to Tagged unless the regexp extension is allowlisted"
+  "Ciborium::Compat very simple bignums": "integers outside -2**64...2**64 need the bignum extension allowlisted"
+  "Ciborium::Compat 0x982173487123985791827359872948752345": "integers outside -2**64...2**64 need the bignum extension allowlisted"
+  "Ciborium::Compat fixnum/bignum switch": "integers outside -2**64...2**64 need the bignum extension allowlisted"
 all:
   "Ciborium::Compat Unknown tag 0": "the time extension decodes tag 0 and rejects content other than text"

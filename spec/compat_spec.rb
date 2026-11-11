@@ -13,16 +13,16 @@ RSpec.describe(Ciborium::Compat) do
     Ciborium::Compat.extensions = extensions
   end
 
-  it "allowlists only bignum by default" do
-    expect(described_class.extensions).to(eq([:bignum]))
-    expect(described_class.decode(hex("c249010000000000000000"))).to(eq(2**64))
+  it "allowlists nothing by default" do
+    expect(described_class.extensions).to(eq([]))
+    expect(described_class.decode(hex("c249010000000000000000"))).to(be_a(Ciborium::Tagged))
+    expect { described_class.encode(2**64) }.to(raise_error(Ciborium::EncodeError))
     expect(described_class.decode(hex("d82363612a62"))).to(eq(Ciborium::Tagged.new(35, "a*b")))
   end
 
   it "follows extensions set process-wide" do
-    described_class.extensions = []
-    expect(described_class.decode(hex("c249010000000000000000"))).to(be_a(Ciborium::Tagged))
-    expect { described_class.encode(2**64) }.to(raise_error(Ciborium::EncodeError))
+    described_class.extensions = [:bignum]
+    expect(described_class.decode(hex("c249010000000000000000"))).to(eq(2**64))
 
     described_class.extensions = [:regexp]
     expect(described_class.decode(hex("d82363612a62"))).to(eq(/a*b/))
@@ -30,7 +30,7 @@ RSpec.describe(Ciborium::Compat) do
 
   it "rejects invalid extensions" do
     expect { described_class.extensions = [:yaml] }.to(raise_error(ArgumentError))
-    expect(described_class.extensions).to(eq([:bignum]))
+    expect(described_class.extensions).to(eq([]))
   end
 
   describe ".encode" do

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   rspec:
-    name: "${{ matrix.suite }} (extensions: ${{ matrix.extensions }})"
+    name: ${{ matrix.suite }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -19,9 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Compat allowlists no tag extension by default, so passing shows neither gem needs one.
         suite: [webauthn, cose]
-        # none allowlists no tag extension at all, showing neither gem needs one.
-        extensions: [default, none]
         include:
           - suite: webauthn
             repository: cedarcode/webauthn-ruby
@@ -64,4 +63,3 @@ jobs:
           BUNDLE_GEMFILE: ${{ github.workspace }}/spec/downstream/Gemfile
           CIBORIUM_DOWNSTREAM_DIR: ${{ github.workspace }}/tmp/downstream
           CIBORIUM_DOWNSTREAM_SUITE: ${{ matrix.suite }}
-          CIBORIUM_DOWNSTREAM_EXTENSIONS: ${{ matrix.extensions }}

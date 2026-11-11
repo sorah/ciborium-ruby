@@ -15,9 +15,9 @@ module Ciborium
     Tagged = Ciborium::Tagged
     Simple = Ciborium::Simple
 
-    # bignum keeps big Integers transparent, as the cbor gem does, and builds nothing but an
-    # Integer from the input.
-    DEFAULT_EXTENSIONS = [:bignum].freeze #: Array[extension]
+    # Nothing is allowlisted until the application opts in, as with Ciborium itself.
+    DEFAULT_EXTENSIONS = [] #: Array[extension]
+    DEFAULT_EXTENSIONS.freeze
 
     # @rbs self.@extensions: Array[extension]
     @extensions = DEFAULT_EXTENSIONS
