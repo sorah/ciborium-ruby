@@ -26,41 +26,73 @@ module Ciborium
       Ciborium::Simple,
     ].freeze #: Array[Module]
 
-    # Marks the cbor gem's entry point as loaded, so a later require "cbor" cannot replace
-    # CBOR. Does nothing when the cbor gem is not installed.
+    # Constants of the cbor gem that CBOR carries.
+    CBOR_CONSTANTS = [
+      :Packer, :Unpacker, :Buffer, :Tagged, :Simple, :UnpackError, :MalformedFormatError, :StackError, :TypeError,
+    ].freeze #: Array[Symbol]
+
+    # Module functions of the cbor gem that CBOR carries.
+    CBOR_FUNCTIONS = [:encode, :pack, :dump, :decode, :unpack, :load].freeze #: Array[Symbol]
+
+    # @rbs self.@facade: Module?
+
+    # The frozen module installed as CBOR. It delegates to Compat rather than being Compat, so the
+    # cbor gem's extension, should it load anyway, fails on reopening it instead of replacing
+    # Compat's methods with its own.
+    #
+    #: () -> Module
+    def self.facade
+      @facade ||= begin
+        compat = self
+        facade = Module.new
+        CBOR_CONSTANTS.each { |name| facade.const_set(name, const_get(name)) }
+        CBOR_FUNCTIONS.each do |name|
+          facade.define_singleton_method(name) { |*args| compat.public_send(name, *args) }
+        end
+        [Packer, Unpacker, Buffer].each(&:freeze)
+        facade.freeze
+      end
+    end
+
+    # Marks every file of the installed cbor gems that require "cbor" could load as loaded.
     #
     #: () -> void
     def self.block_cbor_gem
-      path = cbor_gem_entry_point
-      $LOADED_FEATURES << path if path && !$LOADED_FEATURES.include?(path)
+      $LOADED_FEATURES.concat(cbor_gem_features - $LOADED_FEATURES)
     end
 
-    # The file require "cbor" would load: from the load path once Bundler or RubyGems has
-    # activated the cbor gem, or from the gem RubyGems would activate otherwise.
+    # The cbor gem's entry point and extension: as found on the load path, and in every
+    # installed version, since RubyGems may activate any of them later.
     #
-    #: () -> String?
-    def self.cbor_gem_entry_point
-      type, path = $LOAD_PATH.resolve_feature_path("cbor")
-      return path if type == :rb
-      return unless defined?(Gem::Specification)
-
-      spec = Gem::Specification.find_by_path("cbor")
-      spec&.full_require_paths&.map { |dir| File.join(dir, "cbor.rb") }&.find { |file| File.file?(file) }
-    rescue LoadError
-      nil
+    #: () -> Array[String]
+    def self.cbor_gem_features
+      paths = ["cbor", "cbor/cbor"].filter_map do |feature|
+        _type, path = $LOAD_PATH.resolve_feature_path(feature)
+        path
+      rescue LoadError
+        nil
+      end
+      if defined?(Gem::Specification)
+        Gem::Specification.find_all_by_name("cbor").each do |spec|
+          spec.full_require_paths.each do |dir|
+            paths.concat(Dir[File.join(dir, "cbor.rb"), File.join(dir, "cbor", "{,*/}cbor.{so,bundle}")])
+          end
+        end
+      end
+      paths.uniq
     end
 
     #: () -> void
     def self.install
       block_cbor_gem
-      if Object.const_defined?(:CBOR, false) && !Object.const_get(:CBOR, false).equal?(self)
+      if Object.const_defined?(:CBOR, false) && !Object.const_get(:CBOR, false).equal?(facade)
         warn(
           "ciborium/replace: CBOR was already defined, likely by the cbor gem, and is now replaced. " \
             "Require ciborium/replace before Bundler.require so the cbor gem is never loaded.",
         )
         Object.send(:remove_const, :CBOR)
       end
-      Object.const_set(:CBOR, self) unless Object.const_defined?(:CBOR, false)
+      Object.const_set(:CBOR, facade) unless Object.const_defined?(:CBOR, false)
 
       classes = CORE_EXT_CLASSES.dup
       classes << ::URI::Generic if defined?(::URI::Generic)

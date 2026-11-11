@@ -5,17 +5,31 @@ module Ciborium
     # Classes the cbor gem gives to_cbor. URI::Generic is included when URI is loaded.
     CORE_EXT_CLASSES: Array[Module]
 
-    # Marks the cbor gem's entry point as loaded, so a later require "cbor" cannot replace
-    # CBOR. Does nothing when the cbor gem is not installed.
+    # Constants of the cbor gem that CBOR carries.
+    CBOR_CONSTANTS: Array[Symbol]
+
+    # Module functions of the cbor gem that CBOR carries.
+    CBOR_FUNCTIONS: Array[Symbol]
+
+    self.@facade: Module?
+
+    # The frozen module installed as CBOR. It delegates to Compat rather than being Compat, so the
+    # cbor gem's extension, should it load anyway, fails on reopening it instead of replacing
+    # Compat's methods with its own.
+    #
+    # : () -> Module
+    def self.facade: () -> Module
+
+    # Marks every file of the installed cbor gems that require "cbor" could load as loaded.
     #
     # : () -> void
     def self.block_cbor_gem: () -> void
 
-    # The file require "cbor" would load: from the load path once Bundler or RubyGems has
-    # activated the cbor gem, or from the gem RubyGems would activate otherwise.
+    # The cbor gem's entry point and extension: as found on the load path, and in every
+    # installed version, since RubyGems may activate any of them later.
     #
-    # : () -> String?
-    def self.cbor_gem_entry_point: () -> String?
+    # : () -> Array[String]
+    def self.cbor_gem_features: () -> Array[String]
 
     # : () -> void
     def self.install: () -> void

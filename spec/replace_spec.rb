@@ -18,19 +18,52 @@ RSpec.describe("ciborium/replace") do
     stdout, stderr, status = run_ruby(<<~RUBY)
       require "ciborium/replace"
       p require("cbor")
-      p CBOR.equal?(Ciborium::Compat)
-      p $LOADED_FEATURES.grep(%r{/cbor/(?:[\\d.]+/)?cbor\\.(?:so|bundle)\\z}).empty?
+      p CBOR.equal?(Ciborium::Compat.facade)
+      maps = File.readable?("/proc/self/maps") ? File.read("/proc/self/maps") : ""
+      p maps.match?(%r{/cbor/(?:[\\d.]+/)?cbor\\.so$})
     RUBY
     expect(status).to(be_success, stderr)
     expect(stderr).to(be_empty)
-    expect(stdout.lines(chomp: true)).to(eq(["false", "true", "true"]))
+    expect(stdout.lines(chomp: true)).to(eq(["false", "true", "false"]))
+  end
+
+  it "blocks the cbor gem's extension under every path it could be required by" do
+    stdout, stderr, status = run_ruby(<<~RUBY)
+      require "ciborium/replace"
+      p require("cbor/cbor")
+      spec = Gem::Specification.find_by_name("cbor")
+      p spec.full_require_paths.map { |dir| Dir[File.join(dir, "cbor", "cbor.{so,bundle}")] }.flatten.map { |path| require(path) }.uniq
+    RUBY
+    expect(status).to(be_success, stderr)
+    expect(stdout.lines(chomp: true)).to(eq(["false", "[false]"]))
+  end
+
+  it "makes the cbor gem's extension fail to load from anywhere else, keeping CBOR intact" do
+    stdout, stderr, status = run_ruby(<<~'RUBY')
+      require "fileutils"
+      require "tmpdir"
+      require "ciborium/replace"
+      spec = Gem::Specification.find_by_name("cbor")
+      extension = spec.full_require_paths.flat_map { |dir| Dir[File.join(dir, "cbor", "cbor.{so,bundle}")] }.fetch(0)
+      copy = File.join(Dir.mktmpdir, File.basename(extension))
+      FileUtils.cp(extension, copy)
+      begin
+        require copy
+        p :loaded
+      rescue FrozenError
+        p :frozen
+      end
+      p CBOR.decode("\xc1\x00".b)
+    RUBY
+    expect(status).to(be_success, stderr)
+    expect(stdout.lines(chomp: true)).to(eq([":frozen", "#<data Ciborium::Tagged tag=1, value=0>"]))
   end
 
   it "replaces the cbor gem loaded before it, with a warning" do
     stdout, stderr, status = run_ruby(<<~RUBY)
       require "cbor"
       require "ciborium/replace"
-      p CBOR.equal?(Ciborium::Compat)
+      p CBOR.equal?(Ciborium::Compat.facade)
       p 1.method(:to_cbor).owner
       p CBOR.decode({"a" => 1}.to_cbor) == {"a" => 1}
     RUBY
@@ -43,7 +76,7 @@ RSpec.describe("ciborium/replace") do
     stdout, stderr, status = run_ruby(<<~RUBY, bundled: false)
       require "ciborium/replace"
       p require("cbor")
-      p CBOR.equal?(Ciborium::Compat)
+      p CBOR.equal?(Ciborium::Compat.facade)
     RUBY
     skip("the cbor gem is not installed outside the bundle") if stderr.include?("cannot load such file -- cbor")
     expect(status).to(be_success, stderr)
@@ -53,7 +86,7 @@ RSpec.describe("ciborium/replace") do
   it "defines CBOR quietly when the cbor gem is not installed" do
     stdout, stderr, status = run_ruby(<<~RUBY, "--disable-gems", bundled: false)
       require "ciborium/replace"
-      p CBOR.equal?(Ciborium::Compat)
+      p CBOR.equal?(Ciborium::Compat.facade)
     RUBY
     expect(status).to(be_success, stderr)
     expect(stderr).to(be_empty)

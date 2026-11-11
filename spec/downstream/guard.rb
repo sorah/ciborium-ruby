@@ -21,9 +21,11 @@ require "ciborium/replace"
 
 RSpec.configure do |config|
   check = lambda do
-    raise "CBOR is not Ciborium::Compat" unless CBOR.equal?(Ciborium::Compat)
+    raise "CBOR is not Ciborium::Compat.facade" unless CBOR.equal?(Ciborium::Compat.facade)
 
-    native = $LOADED_FEATURES.grep(%r{/cbor/(?:\d+\.\d+/)?cbor\.(?:so|bundle)\z})
+    # ciborium/replace lists the extension in $LOADED_FEATURES itself, so look at what is mapped.
+    maps = File.readable?("/proc/self/maps") ? File.read("/proc/self/maps") : ""
+    native = maps.scan(%r{\S*/cbor/(?:\d+\.\d+/)?cbor\.so$})
     raise "the cbor gem's extension was loaded: #{native.join(", ")}" unless native.empty?
     raise "ciborium/replace warned: #{replace_warnings.join(" ")}" unless replace_warnings.empty?
   end
