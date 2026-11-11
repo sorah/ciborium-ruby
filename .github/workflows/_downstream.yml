@@ -1,0 +1,67 @@
+name: Downstream
+
+# Runs the specs of gems that depend on the cbor gem against Ciborium::Compat, through
+# ciborium/replace, as spec/downstream/guard.rb describes. No secrets required.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  rspec:
+    name: "${{ matrix.suite }} (extensions: ${{ matrix.extensions }})"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [webauthn, cose]
+        # none allowlists no tag extension at all, showing neither gem needs one.
+        extensions: [default, none]
+        include:
+          - suite: webauthn
+            repository: cedarcode/webauthn-ruby
+            ref: e8029aa943328a4fad34145f07128247cd86c0a4 # v3.5.0
+          - suite: cose
+            repository: cedarcode/cose-ruby
+            ref: 294fb2fbd28a5c97471aa888ae1947acc83a31d4 # v1.3.1
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          path: tmp/downstream
+          persist-credentials: false
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master 2026-09-12
+        with:
+          toolchain: stable
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - run: bundle exec rake compile
+      - name: Install the downstream bundle
+        run: bundle install
+        working-directory: tmp/downstream
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/spec/downstream/Gemfile
+          CIBORIUM_DOWNSTREAM_DIR: ${{ github.workspace }}/tmp/downstream
+      - name: Run the downstream specs
+        run: bundle exec ruby -r "$GITHUB_WORKSPACE/spec/downstream/guard.rb" -S rspec
+        working-directory: tmp/downstream
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/spec/downstream/Gemfile
+          CIBORIUM_DOWNSTREAM_DIR: ${{ github.workspace }}/tmp/downstream
+          CIBORIUM_DOWNSTREAM_SUITE: ${{ matrix.suite }}
+          CIBORIUM_DOWNSTREAM_EXTENSIONS: ${{ matrix.extensions }}

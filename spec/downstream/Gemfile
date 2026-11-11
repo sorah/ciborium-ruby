@@ -1,0 +1,24 @@
+# frozen_string_literal: true
+
+# Bundles the downstream project checked out at CIBORIUM_DOWNSTREAM_DIR together with this ciborium, for
+# running its specs against Ciborium::Compat. Its cbor dependency still resolves to the cbor gem, as
+# in an application that depends on both.
+
+source "https://rubygems.org"
+
+directory = ENV.fetch("CIBORIUM_DOWNSTREAM_DIR")
+spec = Bundler.load_gemspec(Dir[File.join(directory, "*.gemspec")].fetch(0))
+
+gem spec.name, path: directory
+gem "ciborium", path: File.expand_path("../..", __dir__)
+# A bundled gem since Ruby 3.4, which cose-ruby 1.3.1's specs require without declaring it.
+gem "base64"
+
+# Release and lint tooling the specs do not load. cose-ruby's bundler requirement also excludes
+# the Bundler that ships with Ruby 4.0.
+skipped = ["appraisal", "bundler", "rake", "rubocop", "rubocop-performance", "rubocop-rake", "rubocop-rspec"]
+spec.development_dependencies.each do |dependency|
+  next if skipped.include?(dependency.name) || dependency.name == "base64"
+
+  gem dependency.name, *dependency.requirement.as_list
+end

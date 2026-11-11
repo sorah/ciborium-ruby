@@ -14,13 +14,18 @@ jobs:
       contents: read
     uses: ./.github/workflows/_test.yml # zizmor: ignore[self-repository]
 
+  downstream:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_downstream.yml # zizmor: ignore[self-repository]
+
   native:
     permissions:
       contents: read
     uses: ./.github/workflows/native.yml # zizmor: ignore[self-repository]
 
   release:
-    needs: [test, native]
+    needs: [test, downstream, native]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment:
