@@ -133,6 +133,26 @@ RSpec.describe(Ciborium) do
         GC.stress = false
       end
     end
+
+    it "keeps open containers and pending keys intact when GC compacts mid-decode" do
+      skip "GC compaction is unsupported" unless GC.respond_to?(:verify_compaction_references)
+
+      compacting = Class.new do
+        define_method(:tags) { [200] }
+        define_method(:classes) { [] }
+        define_method(:decode) do |_tag, value|
+          GC.verify_compaction_references(expand_heap: true, toward: :empty)
+          value
+        end
+        define_method(:encode) { |object| object }
+      end.new
+      # An array, a map, and a map awaiting a key's value, each open around the tag.
+      expect(Ciborium.decode(hex("8301 02 d8c8 03".delete(" ")), extensions: [compacting])).to(eq([1, 2, 3]))
+      expect(Ciborium.decode(hex("a2 6161 01 6162 d8c8 02".delete(" ")), extensions: [compacting]))
+        .to(eq({"a" => 1, "b" => 2}))
+      expect(Ciborium.decode(hex("a1 6161 82 6162 d8c8 02".delete(" ")), extensions: [compacting]))
+        .to(eq({"a" => ["b", 2]}))
+    end
   end
 
   describe ".decode_prefix" do

@@ -6,15 +6,18 @@ pub(crate) const FLAG_CTAP2: u32 = 1 << 2;
 // them.
 const PREALLOCATE_LIMIT: usize = 256;
 
+// Containers and pending keys are referred to by their index in `pin`, since compaction may move
+// the objects and only updates references the GC can see.
 enum Frame {
     Array {
-        array: magnus::RArray,
+        slot: usize,
         remaining: Option<usize>,
     },
     Map {
-        hash: magnus::RHash,
+        slot: usize,
         remaining: Option<usize>,
-        key: Option<magnus::Value>,
+        // Whether a key awaits its value, held in `pin` just above the map.
+        has_key: bool,
         // Byte ranges of the current and the previous key, for the ctap2 profile's ordering.
         key_start: usize,
         previous_key: Option<(usize, usize)>,
@@ -34,9 +37,10 @@ pub(crate) struct Decoder<'a> {
     // Tag number to a callable taking (tag, content), for allowlisted extensions only.
     handlers: Option<magnus::RHash>,
     stack: Vec<Frame>,
-    // Containers held in `stack` live on the Rust heap, which the GC does not scan. This array
-    // keeps them reachable, and is itself reachable through the Decoder on the native stack. It
-    // is not registered globally, so a NoMemoryError unwinding past Rust leaves nothing behind.
+    // Open containers and pending keys, in the order of `stack`. Frames live on the Rust heap,
+    // which the GC does not scan. This array is reachable through the Decoder on the native
+    // stack, and is not registered globally, so a NoMemoryError unwinding past Rust leaves
+    // nothing behind.
     pin: magnus::RArray,
     tagged_class: magnus::RClass,
     simple_class: magnus::RClass,
@@ -87,7 +91,7 @@ impl<'a> Decoder<'a> {
         loop {
             let start = self.cursor.pos();
             if let Some(Frame::Map {
-                key: None,
+                has_key: false,
                 key_start,
                 ..
             }) = self.stack.last_mut()
@@ -114,8 +118,8 @@ impl<'a> Decoder<'a> {
                         let capacity = len
                             .map_or(0, |n| n.min(self.cursor.remaining()).min(PREALLOCATE_LIMIT));
                         let array = self.ruby.ary_new_capa(capacity);
-                        self.open(Frame::Array {
-                            array,
+                        self.open_container(array.as_value(), |slot| Frame::Array {
+                            slot,
                             remaining: len,
                         })?;
                         continue;
@@ -126,10 +130,10 @@ impl<'a> Decoder<'a> {
                         self.ruby.hash_new().as_value()
                     } else {
                         let hash = self.ruby.hash_new();
-                        self.open(Frame::Map {
-                            hash,
+                        self.open_container(hash.as_value(), |slot| Frame::Map {
+                            slot,
                             remaining: len,
-                            key: None,
+                            has_key: false,
                             key_start: 0,
                             previous_key: None,
                         })?;
@@ -151,12 +155,18 @@ impl<'a> Decoder<'a> {
         if self.stack.len() >= self.max_depth {
             return Err(crate::error::Error::Depth(self.max_depth));
         }
-        match &frame {
-            Frame::Array { array, .. } => self.pin.push(*array)?,
-            Frame::Map { hash, .. } => self.pin.push(*hash)?,
-            Frame::Tag { .. } => {}
-        }
         self.stack.push(frame);
+        Ok(())
+    }
+
+    fn open_container(
+        &mut self,
+        container: magnus::Value,
+        frame: impl FnOnce(usize) -> Frame,
+    ) -> Result<(), crate::error::Error> {
+        let slot = self.pin.len();
+        self.open(frame(slot))?;
+        self.pin.push(container)?;
         Ok(())
     }
 
@@ -177,7 +187,8 @@ impl<'a> Decoder<'a> {
         loop {
             let finished = match self.stack.last_mut() {
                 None => return Ok(Some(value)),
-                Some(Frame::Array { array, remaining }) => {
+                Some(Frame::Array { slot, remaining }) => {
+                    let array: magnus::RArray = self.pin.entry(*slot as isize)?;
                     array.push(value)?;
                     match remaining {
                         Some(n) => {
@@ -191,13 +202,13 @@ impl<'a> Decoder<'a> {
                     }
                 }
                 Some(Frame::Map {
-                    hash,
+                    slot,
                     remaining,
-                    key,
+                    has_key,
                     key_start,
                     previous_key,
                 }) => {
-                    let Some(k) = key.take() else {
+                    if !*has_key {
                         if self.flags & FLAG_CTAP2 != 0 {
                             let current = (*key_start, self.cursor.pos());
                             let input = self.cursor.input();
@@ -215,17 +226,18 @@ impl<'a> Decoder<'a> {
                             }
                             *previous_key = Some(current);
                         }
-                        *key = Some(value);
+                        *has_key = true;
                         self.pin.push(value)?;
                         return Ok(None);
-                    };
+                    }
+                    *has_key = false;
+                    let key: magnus::Value = self.pin.pop()?;
+                    let hash: magnus::RHash = self.pin.entry(*slot as isize)?;
                     let size = hash.len();
-                    hash.aset(k, value)?;
+                    hash.aset(key, value)?;
                     if hash.len() == size && self.flags & FLAG_LAST_WINS == 0 {
                         return Err(crate::error::Error::malformed("duplicate map key"));
                     }
-                    let hash = *hash;
-                    self.pin.pop::<magnus::Value>()?;
                     match remaining {
                         Some(n) => {
                             *n -= 1;
@@ -250,18 +262,19 @@ impl<'a> Decoder<'a> {
     }
 
     fn close_indefinite(&mut self, start: usize) -> Result<magnus::Value, crate::error::Error> {
-        use magnus::value::ReprValue as _;
         let value = match self.stack.last() {
-            Some(Frame::Array {
-                array,
-                remaining: None,
-            }) => array.as_value(),
-            Some(Frame::Map {
-                hash,
-                remaining: None,
-                key: None,
-                ..
-            }) => hash.as_value(),
+            Some(
+                Frame::Array {
+                    slot,
+                    remaining: None,
+                }
+                | Frame::Map {
+                    slot,
+                    remaining: None,
+                    has_key: false,
+                    ..
+                },
+            ) => self.pin.entry(*slot as isize)?,
             _ => {
                 return Err(crate::error::Error::malformed(format!(
                     "unexpected break at offset {start}"
@@ -325,6 +338,6 @@ impl<'a> Decoder<'a> {
     }
 
     fn expects_key(&self) -> bool {
-        matches!(self.stack.last(), Some(Frame::Map { key: None, .. }))
+        matches!(self.stack.last(), Some(Frame::Map { has_key: false, .. }))
     }
 }
