@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Installs a precompiled gem and round-trips data through it. Run by
+# .github/workflows/native.yml on each platform a gem targets.
+
+gem_path = ARGV.fetch(0) { abort "usage: #{$PROGRAM_NAME} pkg/ciborium-VERSION-PLATFORM.gem" }
+system("gem", "install", "--no-document", gem_path, exception: true)
+Gem::Specification.reset
+
+require "ciborium"
+
+native = $LOADED_FEATURES.grep(/ciborium_native/)
+puts native
+minor = RUBY_VERSION[/\A\d+\.\d+/]
+abort "expected the precompiled extension for Ruby #{minor}" unless native.any? { |path| path.include?("/#{minor}/") }
+
+value = {"a" => [1, -2, 2.5, nil, true, "x".b], 10 => Ciborium::Tagged.new(100, {})}
+abort "round trip failed" unless Ciborium.decode(Ciborium.encode(value)) == value
+puts RUBY_DESCRIPTION

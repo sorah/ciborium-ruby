@@ -1,0 +1,310 @@
+name: Native gems
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUBY_BUILD_TAG: v20260917
+
+jobs:
+  # Platforms with a runner of their own build natively, once per Ruby.
+  build:
+    name: "${{ matrix.platform }} / Ruby ${{ matrix.ruby }}"
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x86_64-linux-gnu, aarch64-linux-gnu, arm64-darwin, x64-mingw-ucrt]
+        ruby: ['3.3.12', '3.4.10', '4.0.7']
+        include:
+          # manylinux_2_34 (AlmaLinux 9, glibc 2.34) keeps the Linux gems loadable on glibc 2.34
+          # and newer.
+          - platform: x86_64-linux-gnu
+            runner: ubuntu-24.04
+            image_tag: manylinux_2_34-2026.09.14-1
+            container: quay.io/pypa/manylinux_2_34_x86_64:2026.09.14-1@sha256:0b4acc5b3c4c797bb9a6286c4d15039962f61ee0c5426753afd5cbe45baebfc4
+            rust_toolchain: stable
+          - platform: aarch64-linux-gnu
+            runner: ubuntu-24.04-arm
+            image_tag: manylinux_2_34-2026.09.14-1
+            container: quay.io/pypa/manylinux_2_34_aarch64:2026.09.14-1@sha256:db1a485b015c1d9a6d7e2929367a69a6f772964be06cca8fe585f959a47ec0b7
+            rust_toolchain: stable
+          - platform: arm64-darwin
+            runner: macos-15
+            image_tag: ''
+            container: ''
+            rust_toolchain: stable
+          # RubyInstaller's Rubies are built by MinGW, so the extension is built with the
+          # windows-gnu toolchain.
+          - platform: x64-mingw-ucrt
+            runner: windows-2025
+            image_tag: ''
+            container: ''
+            rust_toolchain: stable-x86_64-pc-windows-gnu
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      RB_SYS_CARGO_PROFILE: release
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # Linux: Ruby is compiled inside the container, since prebuilt Rubies need a newer glibc
+      # than the image provides.
+      - name: Install Ruby build dependencies
+        if: runner.os == 'Linux'
+        # libyaml-devel sits in CRB; clang-devel provides the libclang that rb-sys needs to
+        # generate Ruby bindings.
+        run: |
+          dnf install -y dnf-plugins-core
+          dnf config-manager --set-enabled crb
+          dnf install -y libyaml-devel openssl-devel zlib-devel libffi-devel readline-devel gdbm-devel clang-devel
+      - name: Restore Ruby
+        if: runner.os == 'Linux'
+        id: ruby-cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: /opt/rubies/${{ matrix.ruby }}
+          key: ruby-${{ matrix.platform }}-${{ matrix.ruby }}-${{ matrix.image_tag }}-${{ env.RUBY_BUILD_TAG }}
+      - name: Build Ruby
+        if: runner.os == 'Linux' && steps.ruby-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$RUBY_BUILD_TAG" https://github.com/rbenv/ruby-build /tmp/ruby-build
+          RUBY_CONFIGURE_OPTS=--disable-install-doc /tmp/ruby-build/bin/ruby-build "$RUBY_VERSION" "/opt/rubies/$RUBY_VERSION"
+        env:
+          RUBY_VERSION: ${{ matrix.ruby }}
+      - name: Use the built Ruby
+        if: runner.os == 'Linux'
+        run: echo "/opt/rubies/$RUBY_VERSION/bin" >> "$GITHUB_PATH"
+        env:
+          RUBY_VERSION: ${{ matrix.ruby }}
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        if: runner.os != 'Linux'
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: false
+      # Following oxidize-rb/actions: bindgen runs against MSYS2's clang, and the preprocessor
+      # definitions skip intrinsics headers bindgen chokes on (rust-lang/rust-bindgen#2500).
+      - name: Set up the MSYS2 toolchain
+        if: runner.os == 'Windows'
+        # ridk is a batch script, which bash does not run.
+        shell: pwsh
+        run: |
+          ridk exec pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-clang
+          $ucrt = (ridk exec cygpath -m /ucrt64).Trim()
+          Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=$ucrt/bin"
+          Add-Content $env:GITHUB_ENV "BINDGEN_EXTRA_CLANG_ARGS=--target=x86_64-pc-windows-gnu --sysroot=$ucrt -D__AVX512VLFP16INTRIN_H -D__AVX512FP16INTRIN_H"
+
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master 2026-09-12
+        with:
+          toolchain: ${{ matrix.rust_toolchain }}
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - run: ruby -v && bundle install
+      - run: bundle exec rake compile
+
+      - name: Check the extension stays loadable on glibc 2.34
+        if: runner.os == 'Linux'
+        run: |
+          newest="$(objdump -T lib/ciborium/ciborium_native.so | grep -oE 'GLIBC_[0-9.]+' | sed 's/GLIBC_//' | sort -uV | tail -1)"
+          echo "GLIBC: $newest (ceiling 2.34)"
+          [ "$(printf '%s\n2.34\n' "$newest" | sort -V | tail -1)" = 2.34 ] || { echo "::error::GLIBC symbol newer than 2.34"; exit 1; }
+      - name: Check the extension targets macOS 11
+        if: runner.os == 'macOS'
+        run: |
+          otool -l lib/ciborium/ciborium_native.bundle | grep -A4 LC_BUILD_VERSION
+          otool -l lib/ciborium/ciborium_native.bundle | grep -A4 LC_BUILD_VERSION | grep -q 'minos 11.0'
+      - name: Check the extension imports no MinGW runtime DLLs
+        if: runner.os == 'Windows'
+        run: |
+          objdump -p lib/ciborium/ciborium_native.so | grep 'DLL Name' | tee /tmp/dlls
+          if grep -iE 'libgcc|libwinpthread' /tmp/dlls; then
+            echo "::error::the MinGW runtime is not on the PATH Ruby loads extensions from"
+            exit 1
+          fi
+
+      - name: Stage the extension under its Ruby minor
+        run: |
+          minor="${RUBY_VERSION%.*}"
+          mkdir -p "tmp/native-stage/$minor"
+          cp lib/ciborium/ciborium_native.* "tmp/native-stage/$minor/"
+        env:
+          RUBY_VERSION: ${{ matrix.ruby }}
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-${{ matrix.platform }}-${{ matrix.ruby }}
+          path: tmp/native-stage/
+          if-no-files-found: error
+
+  # Platforms without a runner of their own are cross-compiled with rake-compiler inside
+  # rb-sys-dock images, which carry the target Rubies.
+  cross:
+    name: "${{ matrix.platform }} (cross)"
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.container }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x86_64-linux-musl
+            rcd_platform: x86_64-linux-musl
+            container: rbsys/x86_64-linux-musl:0.9.130@sha256:53eb461ff585213551cf348c30a4329b0da1db735347b67877bb92e97018f176
+          - platform: aarch64-linux-musl
+            rcd_platform: aarch64-linux-musl
+            container: rbsys/aarch64-linux-musl:0.9.130@sha256:bc92a3ee6f7df825b61f684cf09360b93aeccd762dcf3a3f7669a3f1dcb7908c
+          # The image's Ubuntu 20.04 cross sysroot sets the glibc floor at 2.31.
+          - platform: arm-linux-gnu
+            rcd_platform: arm-linux-gnueabihf
+            container: rbsys/arm-linux:0.9.130@sha256:35f74b4e450d85b0e6b44b748ca5a00878297c7da81a65c7f5d968e0a003c509
+    env:
+      # The cross Rubies rb-sys-dock 0.9.130 ships for the minors we carry.
+      RUBY_CC_VERSION: 3.3.11:3.4.9:4.0.2
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - run: ruby -v && bundle install
+      - run: bundle exec rake cross compile
+      - name: Check the extensions
+        if: matrix.platform == 'arm-linux-gnu'
+        run: |
+          set -o pipefail
+          for so in "$STAGE_DIR"/*/ciborium_native.so; do
+            newest="$(objdump -T "$so" | grep -oE 'GLIBC_[0-9.]+' | sed 's/GLIBC_//' | sort -uV | tail -1)"
+            echo "$so GLIBC: $newest (ceiling 2.31)"
+            [ "$(printf '%s\n2.31\n' "$newest" | sort -V | tail -1)" = 2.31 ] || { echo "::error::GLIBC symbol newer than 2.31"; exit 1; }
+          done
+        env:
+          # Not RCD_PLATFORM: the image's BASH_ENV script exports its own.
+          STAGE_DIR: tmp/${{ matrix.rcd_platform }}/stage/lib/ciborium
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-${{ matrix.platform }}-cross
+          path: tmp/${{ matrix.rcd_platform }}/stage/lib/ciborium/
+          if-no-files-found: error
+
+  package:
+    name: "gem ${{ matrix.platform }}"
+    needs: [build, cross]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - x86_64-linux-gnu
+          - aarch64-linux-gnu
+          - arm64-darwin
+          - x64-mingw-ucrt
+          - x86_64-linux-musl
+          - aarch64-linux-musl
+          - arm-linux-gnu
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+      # Every artifact holds <X.Y>/ciborium_native.<ext>.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: native-${{ matrix.platform }}-*
+          path: lib/ciborium
+          merge-multiple: true
+      - run: find lib/ciborium -name 'ciborium_native.*'
+      - run: bundle exec rake "gem:native[$PLATFORM]"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: gem-${{ matrix.platform }}
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  smoke:
+    name: "smoke ${{ matrix.platform }}"
+    needs: package
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x86_64-linux-gnu
+            runner: ubuntu-24.04
+          - platform: aarch64-linux-gnu
+            runner: ubuntu-24.04-arm
+          - platform: arm64-darwin
+            runner: macos-15
+          - platform: x64-mingw-ucrt
+            runner: windows-2025
+          # Platforms without a runner of their own run the gem in a stock Ruby image, under
+          # QEMU where the architecture differs.
+          - platform: x86_64-linux-musl
+            runner: ubuntu-24.04
+            image: ruby:4.0-alpine@sha256:6c6496014180c3c01b1a8cda242e888ee5a8591b8b8f7682b90cc2e32bfd31b6
+          - platform: aarch64-linux-musl
+            runner: ubuntu-24.04-arm
+            image: ruby:4.0-alpine@sha256:6c6496014180c3c01b1a8cda242e888ee5a8591b8b8f7682b90cc2e32bfd31b6
+          - platform: arm-linux-gnu
+            runner: ubuntu-24.04
+            image: ruby:4.0-bookworm@sha256:119a36c51c7893215202220eabfdcb561638735de4d45bacf2e8619be3de47f2
+            docker_platform: linux/arm/v7
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: gem-${{ matrix.platform }}
+          path: pkg
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        if: '!matrix.image'
+        with:
+          ruby-version: '4.0'
+          bundler-cache: false
+      - name: Smoke test the gem
+        if: '!matrix.image'
+        run: ruby script/smoke-test-gem pkg/ciborium-*.gem
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        if: matrix.docker_platform
+        with:
+          image: tonistiigi/binfmt:latest@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+      - name: Smoke test the gem in ${{ matrix.image }}
+        if: matrix.image
+        run: |
+          docker run --rm ${DOCKER_PLATFORM:+--platform "$DOCKER_PLATFORM"} -v "$PWD:/src:ro" -w /src "$IMAGE" \
+            sh -c 'ruby script/smoke-test-gem pkg/ciborium-*.gem'
+        env:
+          IMAGE: ${{ matrix.image }}
+          DOCKER_PLATFORM: ${{ matrix.docker_platform }}
