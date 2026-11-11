@@ -1,5 +1,9 @@
 # Defined by the Rust extension under ext/ciborium, which rbs-inline cannot read.
 module Ciborium
   module Native
+    FLAG_SYMBOLIZE_KEYS: Integer
+    FLAG_LAST_WINS: Integer
+
+    def self.decode: (String input, Integer offset, Integer max_depth, Integer flags) -> [untyped, Integer]
   end
 end

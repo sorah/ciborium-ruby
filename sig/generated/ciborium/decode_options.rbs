@@ -1,0 +1,26 @@
+# Generated from lib/ciborium/decode_options.rb with RBS::Inline
+
+module Ciborium
+  DEFAULT_MAX_DEPTH: Integer
+
+  MAX_DEPTH_LIMIT: Integer
+
+  # Decoding options, validated and packed into the arguments the native decoder takes.
+  class DecodeOptions < Data
+    attr_reader max_depth(): Integer
+
+    attr_reader flags(): Integer
+
+    def self.new: (Integer max_depth, Integer flags) -> instance
+                | (max_depth: Integer, flags: Integer) -> instance
+
+    def self.members: () -> [ :max_depth, :flags ]
+
+    def members: () -> [ :max_depth, :flags ]
+  end
+
+  class DecodeOptions
+    # : (?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
+    def self.build: (?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
+  end
+end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ciborium"
+require_relative "support/vectors"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

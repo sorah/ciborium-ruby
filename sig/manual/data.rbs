@@ -1,0 +1,4 @@
+# Core RBS declares no Data#initialize for the validating constructors to call with super.
+class Data
+  def initialize: (**untyped) -> void
+end

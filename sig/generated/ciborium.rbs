@@ -1,4 +1,23 @@
 # Generated from lib/ciborium.rb with RBS::Inline
 
+# A CBOR (RFC 8949) encoder and decoder. Tags carry no meaning unless an extension for them is
+# allowlisted.
 module Ciborium
+  # Decodes a single data item. Raises MalformedError when bytes follow it.
+  #
+  # Options are those of DecodeOptions.build.
+  #
+  # : (String bytes, **untyped options) -> untyped
+  def self.decode: (String bytes, **untyped options) -> untyped
+
+  # Decodes the data item at the start of bytes and returns it with the number of bytes it took,
+  # leaving whatever follows unread.
+  #
+  # : (String bytes, **untyped options) -> [untyped, Integer]
+  def self.decode_prefix: (String bytes, **untyped options) -> [ untyped, Integer ]
+
+  # Decodes a CBOR sequence (RFC 8742), a concatenation of zero or more data items.
+  #
+  # : (String bytes, **untyped options) -> Array[untyped]
+  def self.decode_sequence: (String bytes, **untyped options) -> Array[untyped]
 end

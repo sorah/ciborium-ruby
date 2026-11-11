@@ -1,0 +1,25 @@
+# Hand-written because Tagged and Simple override the Data constructor to validate.
+module Ciborium
+  class Tagged < Data
+    MAX_TAG: Integer
+
+    attr_reader tag: Integer
+    attr_reader value: untyped
+
+    def self.new: (Integer tag, untyped value) -> Tagged
+                | (tag: Integer, value: untyped) -> Tagged
+
+    def initialize: (tag: Integer, value: untyped) -> void
+  end
+
+  class Simple < Data
+    attr_reader value: Integer
+
+    def self.new: (Integer value) -> Simple
+                | (value: Integer) -> Simple
+
+    def initialize: (value: Integer) -> void
+  end
+
+  UNDEFINED: Simple
+end
