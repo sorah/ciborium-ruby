@@ -32,11 +32,11 @@ RSpec.describe("ciborium/replace") do
       require "ciborium/replace"
       p CBOR.equal?(Ciborium::Compat)
       p 1.method(:to_cbor).owner
-      p CBOR.decode({"a" => 1}.to_cbor)
+      p CBOR.decode({"a" => 1}.to_cbor) == {"a" => 1}
     RUBY
     expect(status).to(be_success, stderr)
     expect(stderr).to(match(%r{ciborium/replace: CBOR was already defined}))
-    expect(stdout.lines(chomp: true)).to(eq(["true", "Ciborium::Compat::CoreExt", '{"a" => 1}']))
+    expect(stdout.lines(chomp: true)).to(eq(["true", "Ciborium::Compat::CoreExt", "true"]))
   end
 
   it "blocks the cbor gem without Bundler, through RubyGems" do
