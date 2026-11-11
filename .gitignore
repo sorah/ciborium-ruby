@@ -24,3 +24,6 @@
 
 # Resolved per downstream checkout in CI.
 /spec/downstream/Gemfile.lock
+
+# Crate license texts collected into precompiled gems by rake gem:native.
+/licenses/
