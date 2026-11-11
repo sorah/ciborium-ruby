@@ -1,2 +1,10 @@
 # Generated from lib/ciborium/native.rb with RBS::Inline
 
+module Ciborium
+  module Native
+    # Called by the encoder for text in an encoding other than UTF-8 or US-ASCII.
+    #
+    # : (String string) -> String
+    def self.transcode: (String string) -> String
+  end
+end

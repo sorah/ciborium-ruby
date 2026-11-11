@@ -4,6 +4,7 @@ pub(crate) enum Error {
     Malformed(String),
     Incomplete,
     Depth(usize),
+    Encode(String),
     Ruby(magnus::Error),
 }
 
@@ -18,14 +19,24 @@ impl Error {
         Self::Malformed(message.into())
     }
 
+    pub(crate) fn message(&self) -> String {
+        match self {
+            Self::Ruby(error) => error.to_string(),
+            Self::Malformed(message) | Self::Encode(message) => message.clone(),
+            Self::Incomplete => "unexpected end of input".to_owned(),
+            Self::Depth(max) => format!("nesting exceeds max_depth ({max})"),
+        }
+    }
+
     pub(crate) fn into_ruby(self, ruby: &magnus::Ruby) -> magnus::Error {
-        let (name, message) = match self {
+        let name = match self {
             Self::Ruby(error) => return error,
-            Self::Malformed(message) => ("MalformedError", message),
-            Self::Incomplete => ("IncompleteError", "unexpected end of input".to_owned()),
-            Self::Depth(max) => ("DepthError", format!("nesting exceeds max_depth ({max})")),
+            Self::Malformed(_) => "MalformedError",
+            Self::Incomplete => "IncompleteError",
+            Self::Depth(_) => "DepthError",
+            Self::Encode(_) => "EncodeError",
         };
-        crate::error::Error::ruby_error(ruby, name, message)
+        crate::error::Error::ruby_error(ruby, name, self.message())
     }
 
     fn ruby_error(ruby: &magnus::Ruby, name: &str, message: String) -> magnus::Error {

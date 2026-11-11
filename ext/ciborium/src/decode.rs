@@ -20,8 +20,7 @@ enum Frame {
 /// `max_depth` rather than by the native stack.
 pub(crate) struct Decoder<'a> {
     ruby: &'a magnus::Ruby,
-    input: &'a [u8],
-    pos: usize,
+    cursor: crate::cursor::Cursor<'a>,
     max_depth: usize,
     flags: u32,
     stack: Vec<Frame>,
@@ -45,8 +44,7 @@ impl<'a> Decoder<'a> {
             .const_get::<_, magnus::RModule>("Ciborium")?;
         Ok(Self {
             ruby,
-            input,
-            pos,
+            cursor: crate::cursor::Cursor::new(input, pos),
             max_depth,
             flags,
             stack: Vec::new(),
@@ -57,28 +55,27 @@ impl<'a> Decoder<'a> {
     }
 
     pub(crate) fn pos(&self) -> usize {
-        self.pos
+        self.cursor.pos()
     }
 
     /// Decodes the item at the current position and advances past it.
     pub(crate) fn decode(&mut self) -> Result<magnus::Value, crate::error::Error> {
         use magnus::value::ReprValue as _;
         loop {
-            let head = crate::head::Head::parse(self.input, self.pos)?;
-            self.pos += head.len;
-            let value = match head.header {
+            let start = self.cursor.pos();
+            let value = match self.cursor.head()? {
                 ciborium_ll::Header::Positive(n) => self.ruby.integer_from_u64(n).as_value(),
                 ciborium_ll::Header::Negative(n) => self.negative(n)?,
                 ciborium_ll::Header::Float(f) => self.ruby.float_from_f64(f).as_value(),
                 ciborium_ll::Header::Simple(n) => self.simple(n)?,
                 ciborium_ll::Header::Bytes(len) => self.string(len, false)?,
                 ciborium_ll::Header::Text(len) => self.string(len, true)?,
-                ciborium_ll::Header::Break => self.close_indefinite()?,
+                ciborium_ll::Header::Break => self.close_indefinite(start)?,
                 ciborium_ll::Header::Array(len) => {
                     if len == Some(0) {
                         self.ruby.ary_new().as_value()
                     } else {
-                        let capacity = len.map_or(0, |n| n.min(self.remaining()));
+                        let capacity = len.map_or(0, |n| n.min(self.cursor.remaining()));
                         let array = self.ruby.ary_new_capa(capacity);
                         self.open(Frame::Array {
                             array,
@@ -109,10 +106,6 @@ impl<'a> Decoder<'a> {
                 return Ok(value);
             }
         }
-    }
-
-    fn remaining(&self) -> usize {
-        self.input.len().saturating_sub(self.pos)
     }
 
     fn open(&mut self, frame: Frame) -> Result<(), crate::error::Error> {
@@ -198,7 +191,7 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    fn close_indefinite(&mut self) -> Result<magnus::Value, crate::error::Error> {
+    fn close_indefinite(&mut self, start: usize) -> Result<magnus::Value, crate::error::Error> {
         use magnus::value::ReprValue as _;
         let value = match self.stack.last() {
             Some(Frame::Array {
@@ -212,8 +205,7 @@ impl<'a> Decoder<'a> {
             }) => hash.as_value(),
             _ => {
                 return Err(crate::error::Error::malformed(format!(
-                    "unexpected break at offset {}",
-                    self.pos - 1
+                    "unexpected break at offset {start}"
                 )));
             }
         };
@@ -254,68 +246,12 @@ impl<'a> Decoder<'a> {
         len: Option<usize>,
         text: bool,
     ) -> Result<magnus::Value, crate::error::Error> {
-        let start = self.pos;
-        match len {
-            Some(len) => {
-                let bytes = self.take(len)?;
-                self.build_string(bytes, text, start)
-            }
-            None => {
-                let mut buffer = Vec::new();
-                loop {
-                    let head = crate::head::Head::parse(self.input, self.pos)?;
-                    self.pos += head.len;
-                    let len = match head.header {
-                        ciborium_ll::Header::Break => break,
-                        ciborium_ll::Header::Bytes(Some(len)) if !text => len,
-                        ciborium_ll::Header::Text(Some(len)) if text => len,
-                        _ => {
-                            return Err(crate::error::Error::malformed(format!(
-                                "invalid chunk in indefinite-length string at offset {}",
-                                self.pos - head.len
-                            )));
-                        }
-                    };
-                    let chunk_start = self.pos;
-                    let chunk = self.take(len)?;
-                    // RFC 8949 section 3.2.3: each chunk of a text string is valid UTF-8 by itself.
-                    if text && std::str::from_utf8(chunk).is_err() {
-                        return Err(crate::error::Error::malformed(format!(
-                            "invalid UTF-8 in text string at offset {chunk_start}"
-                        )));
-                    }
-                    buffer.extend_from_slice(chunk);
-                }
-                self.build_string(&buffer, text, start)
-            }
-        }
-    }
-
-    fn take(&mut self, len: usize) -> Result<&'a [u8], crate::error::Error> {
-        if len > self.remaining() {
-            return Err(crate::error::Error::Incomplete);
-        }
-        let bytes = &self.input[self.pos..self.pos + len];
-        self.pos += len;
-        Ok(bytes)
-    }
-
-    fn build_string(
-        &self,
-        bytes: &[u8],
-        text: bool,
-        start: usize,
-    ) -> Result<magnus::Value, crate::error::Error> {
         use magnus::value::ReprValue as _;
+        let bytes = self.cursor.string(len, text)?;
         if !text {
-            return Ok(self.ruby.str_from_slice(bytes).as_value());
+            return Ok(self.ruby.str_from_slice(&bytes).as_value());
         }
-        let Ok(s) = std::str::from_utf8(bytes) else {
-            return Err(crate::error::Error::malformed(format!(
-                "invalid UTF-8 in text string at offset {start}"
-            )));
-        };
-        let string = self.ruby.str_new(s);
+        let string = self.ruby.enc_str_new(&bytes, self.ruby.utf8_encoding());
         if self.flags & FLAG_SYMBOLIZE_KEYS != 0 && self.expects_key() {
             // rb_str_intern creates a dynamic Symbol, which the GC can collect, unlike rb_intern.
             // SAFETY: string is a live String created above, and the GVL is held.

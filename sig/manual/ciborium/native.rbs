@@ -5,5 +5,7 @@ module Ciborium
     FLAG_LAST_WINS: Integer
 
     def self.decode: (String input, Integer offset, Integer max_depth, Integer flags) -> [untyped, Integer]
+
+    def self.encode: (untyped value, Integer max_depth, Proc? fallback) -> String
   end
 end

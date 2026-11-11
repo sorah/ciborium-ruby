@@ -5,12 +5,24 @@ require_relative "ciborium/version"
 require_relative "ciborium/errors"
 require_relative "ciborium/tagged"
 require_relative "ciborium/simple"
+require_relative "ciborium/encoded"
 require_relative "ciborium/native"
 require_relative "ciborium/decode_options"
+require_relative "ciborium/encode_options"
 
 # A CBOR (RFC 8949) encoder and decoder. Tags carry no meaning unless an extension for them is
 # allowlisted.
 module Ciborium
+  # Encodes object into a binary String.
+  #
+  # Options are those of EncodeOptions.build.
+  #
+  #: (untyped object, **untyped options) -> String
+  def self.encode(object, **options)
+    opts = EncodeOptions.build(**options)
+    Native.encode(object, opts.max_depth, opts.fallback)
+  end
+
   # Decodes a single data item. Raises MalformedError when bytes follow it.
   #
   # Options are those of DecodeOptions.build.

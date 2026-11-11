@@ -1,6 +1,8 @@
+mod cursor;
 mod decode;
+mod encode;
 mod error;
-mod head;
+mod scan;
 
 /// Runs `f` over the bytes of `string` without letting Ruby code mutate or free them meanwhile.
 fn with_frozen_bytes<T>(string: magnus::RString, f: impl FnOnce(&[u8]) -> T) -> T {
@@ -30,11 +32,30 @@ fn decode(
     .map_err(|error: crate::error::Error| error.into_ruby(ruby))
 }
 
+/// Encodes `value` into a binary String.
+fn encode(
+    ruby: &magnus::Ruby,
+    value: magnus::Value,
+    max_depth: usize,
+    fallback: Option<magnus::Value>,
+) -> Result<magnus::RString, magnus::Error> {
+    let run = || -> Result<Vec<u8>, crate::error::Error> {
+        let mut encoder = crate::encode::Encoder::new(ruby, max_depth, fallback)?;
+        encoder.write(value, 0)?;
+        Ok(encoder.into_bytes())
+    };
+    match run() {
+        Ok(bytes) => Ok(ruby.str_from_slice(&bytes)),
+        Err(error) => Err(error.into_ruby(ruby)),
+    }
+}
+
 #[magnus::init]
 fn init(ruby: &magnus::Ruby) -> Result<(), magnus::Error> {
     use magnus::Module as _;
     let native = ruby.define_module("Ciborium")?.define_module("Native")?;
     native.define_module_function("decode", magnus::function!(crate::decode, 4))?;
+    native.define_module_function("encode", magnus::function!(crate::encode, 3))?;
     native.const_set("FLAG_SYMBOLIZE_KEYS", crate::decode::FLAG_SYMBOLIZE_KEYS)?;
     native.const_set("FLAG_LAST_WINS", crate::decode::FLAG_LAST_WINS)?;
     Ok(())

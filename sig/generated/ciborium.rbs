@@ -3,6 +3,13 @@
 # A CBOR (RFC 8949) encoder and decoder. Tags carry no meaning unless an extension for them is
 # allowlisted.
 module Ciborium
+  # Encodes object into a binary String.
+  #
+  # Options are those of EncodeOptions.build.
+  #
+  # : (untyped object, **untyped options) -> String
+  def self.encode: (untyped object, **untyped options) -> String
+
   # Decodes a single data item. Raises MalformedError when bytes follow it.
   #
   # Options are those of DecodeOptions.build.

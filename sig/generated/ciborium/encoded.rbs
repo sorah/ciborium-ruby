@@ -1,0 +1,16 @@
+# Generated from lib/ciborium/encoded.rb with RBS::Inline
+
+module Ciborium
+  # A data item that is already encoded, written out as-is by the encoder. The encoder checks
+  # that bytes hold exactly one well-formed item.
+  class Encoded < Data
+    attr_reader bytes(): String
+
+    def self.new: (String bytes) -> instance
+                | (bytes: String) -> instance
+
+    def self.members: () -> [ :bytes ]
+
+    def members: () -> [ :bytes ]
+  end
+end

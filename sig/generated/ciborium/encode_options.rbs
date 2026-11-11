@@ -1,0 +1,28 @@
+# Generated from lib/ciborium/encode_options.rb with RBS::Inline
+
+module Ciborium
+  # Encoding options, validated into the arguments the native encoder takes.
+  class EncodeOptions < Data
+    attr_reader max_depth(): Integer
+
+    attr_reader fallback(): Proc?
+
+    def self.new: (Integer max_depth, Proc? fallback) -> instance
+                | (max_depth: Integer, fallback: Proc?) -> instance
+
+    def self.members: () -> [ :max_depth, :fallback ]
+
+    def members: () -> [ :max_depth, :fallback ]
+  end
+
+  class EncodeOptions
+    # fallback is called with each object the encoder cannot represent, and returns an object
+    # to encode in its place.
+    #
+    # : (?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
+    def self.build: (?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
+
+    # : (^(untyped) -> untyped fallback) -> Proc
+    def self.wrap_fallback: (^(untyped) -> untyped fallback) -> Proc
+  end
+end
