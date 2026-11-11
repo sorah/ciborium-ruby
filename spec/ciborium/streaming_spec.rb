@@ -13,6 +13,35 @@ RSpec.describe(Ciborium::Decoder) do
     expect(decoder.buffered_bytes).to(eq(0))
   end
 
+  it "decodes nested containers and indefinite-length strings fed in uneven parts" do
+    value = {"a" => [1, {"b" => ["x" * 300, "y".b * 70]}, [[[]]]], "c" => Ciborium::Tagged.new(9, [nil, 2.5])}
+    input = Ciborium.encode(value) + hex("7f6161626262ff") + hex("9f5f41014102ffff")
+    items = []
+    sizes = [1, 7, 2, 64, 3, 500].cycle
+    pos = 0
+    while pos < input.bytesize
+      size = sizes.next
+      decoder.feed(input.byteslice(pos, size)).each { |item| items << item }
+      pos += size
+    end
+    expect(items).to(eq([value, "abb", ["\x01\x02".b]]))
+  end
+
+  it "rejects a malformed chunk that arrives in a later part" do
+    decoder.feed(hex("7f6161"))
+    expect(decoder.each.to_a).to(eq([]))
+    decoder.feed(hex("4161ff"))
+    expect { decoder.read }.to(raise_error(Ciborium::MalformedError, /chunk/))
+  end
+
+  it "scans a large item fed in small parts in linear time" do
+    input = "\x9f".b + ("\x01".b * 4_000_000) + "\xff".b
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    (0...input.bytesize).step(4096) { |offset| decoder.feed(input.byteslice(offset, 4096)).each { nil } }
+    # Rescanning from the start on every part took over ten seconds here.
+    expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to(be < 5)
+  end
+
   it "raises IncompleteError from read without consuming input" do
     decoder.feed(hex("8201"))
     expect { decoder.read }.to(raise_error(Ciborium::IncompleteError))

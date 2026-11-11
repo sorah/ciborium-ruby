@@ -9,7 +9,12 @@ module Ciborium
 
     def self.encode: (untyped value, Integer max_depth, Integer flags, Proc? fallback, Array[[Module, ^(untyped) -> untyped]]? class_handlers) -> String
 
-    def self.scan: (String input, Integer offset, Integer max_depth) -> Integer?
+    def self.scan: (String input, Integer offset, Integer max_depth, ScanState state) -> Integer?
+
+    # Progress of scanning one incomplete item, carried between scans.
+    class ScanState
+      def clear: () -> void
+    end
 
     def self.read_head: (String input, Integer offset) -> [Integer, Integer?, Integer]?
 

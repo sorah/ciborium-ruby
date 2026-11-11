@@ -37,20 +37,22 @@ fn decode(
 }
 
 /// Returns the offset just past the item starting at `offset`, or nil when the input ends
-/// before it does.
+/// before it does. `state` carries the progress of an incomplete item from one call to the next.
 fn scan(
     ruby: &magnus::Ruby,
     input: magnus::RString,
     offset: usize,
     max_depth: usize,
+    state: &crate::scan::ScanState,
 ) -> Result<Option<usize>, magnus::Error> {
-    crate::with_frozen_bytes(input, |bytes| {
-        match crate::scan::Scanner::new(bytes, offset, max_depth).scan() {
-            Ok(end) => Ok(Some(end)),
-            Err(crate::error::Error::Incomplete) => Ok(None),
-            Err(error) => Err(error.into_ruby(ruby)),
-        }
-    })
+    // SAFETY: scanning runs no Ruby code, so nothing can modify or free the string meanwhile.
+    let result =
+        crate::scan::Scanner::scan_resuming(unsafe { input.as_slice() }, offset, max_depth, state);
+    match result {
+        Ok(crate::scan::Scan::Complete(end)) => Ok(Some(end)),
+        Ok(crate::scan::Scan::Incomplete) => Ok(None),
+        Err(error) => Err(error.into_ruby(ruby)),
+    }
 }
 
 /// Reads the head at `offset` as `[major type, argument, end offset]`, or nil when the input
@@ -60,27 +62,26 @@ fn read_head(
     input: magnus::RString,
     offset: usize,
 ) -> Result<Option<(u8, Option<u64>, usize)>, magnus::Error> {
-    crate::with_frozen_bytes(input, |bytes| {
-        let mut cursor = crate::cursor::Cursor::new(bytes, offset);
-        let header = match cursor.head() {
-            Ok(header) => header,
-            Err(crate::error::Error::Incomplete) => return Ok(None),
-            Err(error) => return Err(error.into_ruby(ruby)),
-        };
-        let (major, argument) = match header {
-            ciborium_ll::Header::Positive(n) => (0, Some(n)),
-            ciborium_ll::Header::Negative(n) => (1, Some(n)),
-            ciborium_ll::Header::Bytes(len) => (2, len.map(|n| n as u64)),
-            ciborium_ll::Header::Text(len) => (3, len.map(|n| n as u64)),
-            ciborium_ll::Header::Array(len) => (4, len.map(|n| n as u64)),
-            ciborium_ll::Header::Map(len) => (5, len.map(|n| n as u64)),
-            ciborium_ll::Header::Tag(n) => (6, Some(n)),
-            ciborium_ll::Header::Float(_)
-            | ciborium_ll::Header::Simple(_)
-            | ciborium_ll::Header::Break => (7, None),
-        };
-        Ok(Some((major, argument, cursor.pos())))
-    })
+    // SAFETY: reading a head runs no Ruby code, so nothing can modify or free the string meanwhile.
+    let mut cursor = crate::cursor::Cursor::new(unsafe { input.as_slice() }, offset);
+    let header = match cursor.head() {
+        Ok(header) => header,
+        Err(crate::error::Error::Incomplete) => return Ok(None),
+        Err(error) => return Err(error.into_ruby(ruby)),
+    };
+    let (major, argument) = match header {
+        ciborium_ll::Header::Positive(n) => (0, Some(n)),
+        ciborium_ll::Header::Negative(n) => (1, Some(n)),
+        ciborium_ll::Header::Bytes(len) => (2, len.map(|n| n as u64)),
+        ciborium_ll::Header::Text(len) => (3, len.map(|n| n as u64)),
+        ciborium_ll::Header::Array(len) => (4, len.map(|n| n as u64)),
+        ciborium_ll::Header::Map(len) => (5, len.map(|n| n as u64)),
+        ciborium_ll::Header::Tag(n) => (6, Some(n)),
+        ciborium_ll::Header::Float(_)
+        | ciborium_ll::Header::Simple(_)
+        | ciborium_ll::Header::Break => (7, None),
+    };
+    Ok(Some((major, argument, cursor.pos())))
 }
 
 /// Encodes a head of major type 4 (array), 5 (map) or 6 (tag) with its argument.
@@ -135,10 +136,14 @@ fn encode(
 #[magnus::init]
 fn init(ruby: &magnus::Ruby) -> Result<(), magnus::Error> {
     use magnus::Module as _;
+    use magnus::Object as _;
     let native = ruby.define_module("Ciborium")?.define_module("Native")?;
     native.define_module_function("decode", magnus::function!(crate::decode, 5))?;
     native.define_module_function("encode", magnus::function!(crate::encode, 5))?;
-    native.define_module_function("scan", magnus::function!(crate::scan, 3))?;
+    native.define_module_function("scan", magnus::function!(crate::scan, 4))?;
+    let scan_state = native.define_class("ScanState", ruby.class_object())?;
+    scan_state.define_singleton_method("new", magnus::function!(crate::scan::ScanState::new, 0))?;
+    scan_state.define_method("clear", magnus::method!(crate::scan::ScanState::clear, 0))?;
     native.define_module_function("read_head", magnus::function!(crate::read_head, 2))?;
     native.define_module_function("encode_head", magnus::function!(crate::encode_head, 2))?;
     native.const_set("FLAG_SYMBOLIZE_KEYS", crate::decode::FLAG_SYMBOLIZE_KEYS)?;

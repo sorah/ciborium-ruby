@@ -9,6 +9,8 @@ module Ciborium
     # Consumed bytes are dropped from the buffer once they exceed this size.
     COMPACT_THRESHOLD: Integer
 
+    @scan_state: Native::ScanState
+
     @pos: Integer
 
     @buffer: String
@@ -67,9 +69,16 @@ module Ciborium
     # : () -> Integer
     private def item_end: () -> Integer
 
+    # Moves to the next item, whose scan starts afresh.
+    #
+    # : (Integer pos) -> void
+    private def advance: (Integer pos) -> void
+
     # : (Integer major, String name) -> Integer
     private def read_container_head: (Integer major, String name) -> Integer
 
+    # The scan state is relative to @pos, so it stays valid.
+    #
     # : () -> void
     private def compact: () -> void
   end

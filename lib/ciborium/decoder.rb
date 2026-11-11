@@ -13,6 +13,7 @@ module Ciborium
     # @rbs @options: DecodeOptions
     # @rbs @buffer: String
     # @rbs @pos: Integer
+    # @rbs @scan_state: Native::ScanState
 
     # Options are those of DecodeOptions.build.
     #
@@ -21,6 +22,7 @@ module Ciborium
       @options = DecodeOptions.build(**options)
       @buffer = "".b
       @pos = 0
+      @scan_state = Native::ScanState.new
     end
 
     #: (String bytes) -> self
@@ -35,7 +37,8 @@ module Ciborium
     #: () -> untyped
     def read
       item_end
-      value, @pos = Native.decode(@buffer, @pos, @options.max_depth, @options.flags, @options.handlers)
+      value, pos = Native.decode(@buffer, @pos, @options.max_depth, @options.flags, @options.handlers)
+      advance(pos)
       value
     end
 
@@ -46,7 +49,7 @@ module Ciborium
     def each
       return enum_for(:each) unless block_given?
 
-      yield read while buffered_bytes > 0 && Native.scan(@buffer, @pos, @options.max_depth)
+      yield read while buffered_bytes > 0 && Native.scan(@buffer, @pos, @options.max_depth, @scan_state)
       self
     end
 
@@ -54,7 +57,7 @@ module Ciborium
     #
     #: () -> self
     def skip
-      @pos = item_end
+      advance(item_end)
       self
     end
 
@@ -93,13 +96,22 @@ module Ciborium
     #: () -> self
     def reset
       @buffer = "".b
-      @pos = 0
+      advance(0)
       self
     end
 
     #: () -> Integer
     private def item_end
-      Native.scan(@buffer, @pos, @options.max_depth) or raise IncompleteError, "unexpected end of input"
+      Native.scan(@buffer, @pos, @options.max_depth, @scan_state) or
+        raise IncompleteError, "unexpected end of input"
+    end
+
+    # Moves to the next item, whose scan starts afresh.
+    #
+    #: (Integer pos) -> void
+    private def advance(pos)
+      @pos = pos
+      @scan_state.clear
     end
 
     #: (Integer major, String name) -> Integer
@@ -112,10 +124,12 @@ module Ciborium
         raise UnexpectedTypeError, "expected a definite-length #{name}, got major type #{actual}"
       end
 
-      @pos = pos
+      advance(pos)
       length
     end
 
+    # The scan state is relative to @pos, so it stays valid.
+    #
     #: () -> void
     private def compact
       return if @pos < COMPACT_THRESHOLD
