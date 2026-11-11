@@ -1,0 +1,25 @@
+[package]
+name = "ciborium_native"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Ruby native extension for the ciborium gem"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+magnus = "0.9"
+rb-sys = { version = "0.9.130", default-features = false, features = ["stable-api-compiled-fallback"] }
+ciborium-ll = { version = "0.2.2", features = ["std"] }
+half = "2.7"
+
+[build-dependencies]
+rb-sys-env = "0.2"
+
+[profile.release]
+debug = 0
+strip = true
+lto = true
+codegen-units = 1

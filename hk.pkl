@@ -12,6 +12,17 @@ local linters = new Mapping<String, Step> {
     fix = "bundle exec rubocop --force-exclusion --autocorrect {{files}}"
     batch = true
   }
+  ["cargo-fmt"] {
+    glob = List("ext/**/*.rs")
+    check = "cargo fmt --manifest-path ext/ciborium/Cargo.toml --check"
+    fix = "cargo fmt --manifest-path ext/ciborium/Cargo.toml"
+  }
+  // clippy checks the whole crate at once, so no file list is passed. It needs Ruby
+  // headers through rb-sys, which the bundle provides.
+  ["cargo-clippy"] {
+    glob = List("ext/**/*.rs", "ext/**/Cargo.toml", "ext/**/Cargo.lock")
+    check = "cargo clippy --manifest-path ext/ciborium/Cargo.toml --all-targets -- -D warnings"
+  }
   ["actionlint"] = Builtins.actionlint
   ["byte-order-marker"] = Builtins.byte_order_marker
   ["check-added-large-files"] = Builtins.check_added_large_files

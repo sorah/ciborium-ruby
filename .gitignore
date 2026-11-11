@@ -12,3 +12,9 @@
 
 # Bundler's local config, and where CI installs gems with `bundle config path`.
 /vendor/
+
+# native extension build outputs
+/ext/ciborium/target/
+/lib/ciborium/*.so
+/lib/ciborium/*.bundle
+/lib/ciborium/[0-9]*.[0-9]*/

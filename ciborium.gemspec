@@ -46,4 +46,7 @@ Gem::Specification.new do |spec|
     end
   end
   spec.require_paths = ["lib"]
+  spec.extensions = ["ext/ciborium/extconf.rb"]
+
+  spec.add_dependency "rb_sys", "~> 0.9.130"
 end
