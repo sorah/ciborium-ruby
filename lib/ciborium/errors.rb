@@ -15,6 +15,9 @@ module Ciborium
   # Containers and tags are nested deeper than max_depth.
   class DepthError < DecodeError; end
 
+  # An allowlisted extension failed to decode a tag's content. The cause holds the original error.
+  class ExtensionError < DecodeError; end
+
   # A Decoder head reader found an item of another type.
   class UnexpectedTypeError < DecodeError; end
 

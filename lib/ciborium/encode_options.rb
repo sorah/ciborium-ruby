@@ -6,19 +6,25 @@ module Ciborium
   EncodeOptions = Data.define(
     :max_depth, #: Integer
     :fallback, #: Proc?
+    :class_handlers, #: Array[[Module, ^(untyped) -> untyped]]?
   )
 
   class EncodeOptions
-    # fallback is called with each object the encoder cannot represent, and returns an object
-    # to encode in its place.
+    # extensions lists the allowlisted extensions (see Extensions). fallback is called with each
+    # object neither the encoder nor an extension can represent, and returns an object to encode
+    # in its place.
     #
-    #: (?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
-    def self.build(max_depth: DEFAULT_MAX_DEPTH, fallback: nil)
+    #: (?extensions: Array[extension], ?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
+    def self.build(extensions: [], max_depth: DEFAULT_MAX_DEPTH, fallback: nil)
       unless max_depth.is_a?(Integer) && max_depth.between?(1, MAX_DEPTH_LIMIT)
         raise ArgumentError, "max_depth must be an Integer in 1..#{MAX_DEPTH_LIMIT}, got #{max_depth.inspect}"
       end
 
-      new(max_depth:, fallback: fallback && wrap_fallback(fallback))
+      new(
+        max_depth:,
+        fallback: fallback && wrap_fallback(fallback),
+        class_handlers: Extensions.class_handlers(Extensions.resolve(extensions)),
+      )
     end
 
     #: (^(untyped) -> untyped fallback) -> Proc

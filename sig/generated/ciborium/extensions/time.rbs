@@ -1,0 +1,22 @@
+# Generated from lib/ciborium/extensions/time.rb with RBS::Inline
+
+module Ciborium
+  module Extensions
+    # Tag 0 (RFC 3339 text) and tag 1 (seconds since the epoch) as Time.
+    class Time
+      # : () -> Array[Integer]
+      def tags: () -> Array[Integer]
+
+      # : () -> Array[Module]
+      def classes: () -> Array[Module]
+
+      # : (Integer tag, untyped value) -> ::Time
+      def decode: (Integer tag, untyped value) -> ::Time
+
+      # Whole seconds are written as an Integer, anything finer as a Float.
+      #
+      # : (::Time object) -> Tagged
+      def encode: (::Time object) -> Tagged
+    end
+  end
+end

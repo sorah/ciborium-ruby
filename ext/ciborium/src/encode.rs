@@ -5,6 +5,8 @@ pub(crate) struct Encoder<'a> {
     out: Vec<u8>,
     max_depth: usize,
     fallback: Option<magnus::Value>,
+    // Pairs of [class, callable] for allowlisted extensions, consulted in order.
+    class_handlers: Option<magnus::RArray>,
     native_module: magnus::RModule,
     tagged_class: magnus::RClass,
     simple_class: magnus::RClass,
@@ -16,6 +18,7 @@ impl<'a> Encoder<'a> {
         ruby: &'a magnus::Ruby,
         max_depth: usize,
         fallback: Option<magnus::Value>,
+        class_handlers: Option<magnus::RArray>,
     ) -> Result<Self, crate::error::Error> {
         use magnus::Module as _;
         let ciborium = ruby
@@ -26,6 +29,7 @@ impl<'a> Encoder<'a> {
             out: Vec::new(),
             max_depth,
             fallback,
+            class_handlers,
             native_module: ciborium.const_get("Native")?,
             tagged_class: ciborium.const_get("Tagged")?,
             simple_class: ciborium.const_get("Simple")?,
@@ -63,7 +67,16 @@ impl<'a> Encoder<'a> {
             return self.push(ciborium_ll::Header::Simple(20));
         }
         if let Some(integer) = magnus::Integer::from_value(value) {
-            return self.integer(integer);
+            if self.integer(integer)? {
+                return Ok(());
+            }
+            if self.fallback.is_none() && self.class_handler(value)?.is_none() {
+                return Err(crate::error::Error::Encode(
+                    "integer is outside -2**64..2**64-1 and the bignum extension is not allowlisted"
+                        .to_owned(),
+                ));
+            }
+            return self.extend(value, depth);
         }
         if let Some(float) = magnus::Float::from_value(value) {
             return self.push(ciborium_ll::Header::Float(float.to_f64()));
@@ -97,6 +110,16 @@ impl<'a> Encoder<'a> {
             let bytes: magnus::RString = value.funcall("bytes", ())?;
             return self.raw(bytes, depth);
         }
+        self.extend(value, depth)
+    }
+
+    /// Encodes what an extension or the fallback returns in place of `value`.
+    fn extend(&mut self, value: magnus::Value, depth: usize) -> Result<(), crate::error::Error> {
+        use magnus::value::ReprValue as _;
+        if let Some(handler) = self.class_handler(value)? {
+            let replacement: magnus::Value = handler.funcall("call", (value,))?;
+            return self.write(replacement, depth + 1);
+        }
         let Some(fallback) = self.fallback else {
             return Err(crate::error::Error::Encode(format!(
                 "cannot encode an instance of {}",
@@ -114,22 +137,48 @@ impl<'a> Encoder<'a> {
             .map_err(|_| crate::error::Error::Encode("failed to write output".to_owned()))
     }
 
-    fn integer(&mut self, integer: magnus::Integer) -> Result<(), crate::error::Error> {
+    fn class_handler(
+        &self,
+        value: magnus::Value,
+    ) -> Result<Option<magnus::Value>, crate::error::Error> {
+        use magnus::value::ReprValue as _;
+        let Some(handlers) = self.class_handlers else {
+            return Ok(None);
+        };
+        for i in 0..handlers.len() {
+            let (module, handler): (magnus::Value, magnus::Value) = handlers.entry(i as isize)?;
+            let matched = if let Some(class) = magnus::RClass::from_value(module) {
+                value.is_kind_of(class)
+            } else if let Some(module) = magnus::RModule::from_value(module) {
+                value.is_kind_of(module)
+            } else {
+                false
+            };
+            if matched {
+                return Ok(Some(handler));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Writes an integer in major type 0 or 1. Returns false when it is outside -2**64..2**64-1.
+    fn integer(&mut self, integer: magnus::Integer) -> Result<bool, crate::error::Error> {
         use magnus::value::ReprValue as _;
         if let Ok(n) = integer.to_u64() {
-            return self.push(ciborium_ll::Header::Positive(n));
+            self.push(ciborium_ll::Header::Positive(n))?;
+            return Ok(true);
         }
         if let Ok(n) = integer.to_i64() {
             // A negative n is encoded as the argument -1 - n, which is !n in two's complement.
-            return self.push(ciborium_ll::Header::Negative(!n as u64));
+            self.push(ciborium_ll::Header::Negative(!n as u64))?;
+            return Ok(true);
         }
         let complement: magnus::Integer = integer.funcall("~", ())?;
         if let Ok(n) = complement.to_u64() {
-            return self.push(ciborium_ll::Header::Negative(n));
+            self.push(ciborium_ll::Header::Negative(n))?;
+            return Ok(true);
         }
-        Err(crate::error::Error::Encode(
-            "integer is outside -2**64..2**64-1".to_owned(),
-        ))
+        Ok(false)
     }
 
     fn string(&mut self, string: magnus::RString) -> Result<(), crate::error::Error> {

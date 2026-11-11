@@ -1,0 +1,35 @@
+# Generated from lib/ciborium/extensions.rb with RBS::Inline
+
+module Ciborium
+  # Tag handling beyond Tagged, enabled per call through the extensions: option.
+  #
+  # An extension is any object that responds to:
+  #
+  # - tags: the tag numbers it decodes
+  # - classes: the classes whose instances it encodes
+  # - decode(tag, value): the object for a tag's decoded content
+  # - encode(object): an object to encode in place of object, typically a Tagged
+  #
+  # Symbols name the built-in extensions.
+  module Extensions
+    BUILTIN: Hash[Symbol, String]
+
+    # Resolves Symbols to the built-in extensions and checks every entry is an extension.
+    #
+    # : (untyped extensions) -> Array[_Extension]
+    def self.resolve: (untyped extensions) -> Array[_Extension]
+
+    # Maps each tag to a callable that wraps the extension's failures in ExtensionError.
+    #
+    # : (Array[_Extension] extensions) -> Hash[Integer, ^(Integer, untyped) -> untyped]?
+    def self.tag_handlers: (Array[_Extension] extensions) -> Hash[Integer, ^(Integer, untyped) -> untyped]?
+
+    # Pairs each class with a callable that wraps the extension's failures in EncodeError.
+    #
+    # : (Array[_Extension] extensions) -> Array[[Module, ^(untyped) -> untyped]]?
+    def self.class_handlers: (Array[_Extension] extensions) -> Array[[ Module, ^(untyped) -> untyped ]]?
+
+    # : (Symbol name) -> _Extension
+    def self.builtin: (Symbol name) -> _Extension
+  end
+end

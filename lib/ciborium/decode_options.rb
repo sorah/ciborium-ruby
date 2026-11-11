@@ -9,11 +9,15 @@ module Ciborium
   DecodeOptions = Data.define(
     :max_depth, #: Integer
     :flags, #: Integer
+    :handlers, #: Hash[Integer, ^(Integer, untyped) -> untyped]?
   )
 
   class DecodeOptions
-    #: (?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
-    def self.build(symbolize_keys: false, max_depth: DEFAULT_MAX_DEPTH, duplicate_keys: :error)
+    # extensions lists the allowlisted extensions (see Extensions); every other tag decodes to
+    # Tagged.
+    #
+    #: (?extensions: Array[extension], ?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
+    def self.build(extensions: [], symbolize_keys: false, max_depth: DEFAULT_MAX_DEPTH, duplicate_keys: :error)
       unless max_depth.is_a?(Integer) && max_depth.between?(1, MAX_DEPTH_LIMIT)
         raise ArgumentError, "max_depth must be an Integer in 1..#{MAX_DEPTH_LIMIT}, got #{max_depth.inspect}"
       end
@@ -28,7 +32,7 @@ module Ciborium
       else
         raise ArgumentError, "duplicate_keys must be :error or :last_wins, got #{duplicate_keys.inspect}"
       end
-      new(max_depth:, flags:)
+      new(max_depth:, flags:, handlers: Extensions.tag_handlers(Extensions.resolve(extensions)))
     end
   end
 end

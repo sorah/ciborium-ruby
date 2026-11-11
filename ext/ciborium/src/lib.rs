@@ -23,9 +23,11 @@ fn decode(
     offset: usize,
     max_depth: usize,
     flags: u32,
+    handlers: Option<magnus::RHash>,
 ) -> Result<(magnus::Value, usize), magnus::Error> {
     crate::with_frozen_bytes(input, |bytes| {
-        let mut decoder = crate::decode::Decoder::new(ruby, bytes, offset, max_depth, flags)?;
+        let mut decoder =
+            crate::decode::Decoder::new(ruby, bytes, offset, max_depth, flags, handlers)?;
         let value = decoder.decode()?;
         Ok((value, decoder.pos()))
     })
@@ -113,9 +115,10 @@ fn encode(
     value: magnus::Value,
     max_depth: usize,
     fallback: Option<magnus::Value>,
+    class_handlers: Option<magnus::RArray>,
 ) -> Result<magnus::RString, magnus::Error> {
     let run = || -> Result<Vec<u8>, crate::error::Error> {
-        let mut encoder = crate::encode::Encoder::new(ruby, max_depth, fallback)?;
+        let mut encoder = crate::encode::Encoder::new(ruby, max_depth, fallback, class_handlers)?;
         encoder.write(value, 0)?;
         Ok(encoder.into_bytes())
     };
@@ -129,8 +132,8 @@ fn encode(
 fn init(ruby: &magnus::Ruby) -> Result<(), magnus::Error> {
     use magnus::Module as _;
     let native = ruby.define_module("Ciborium")?.define_module("Native")?;
-    native.define_module_function("decode", magnus::function!(crate::decode, 4))?;
-    native.define_module_function("encode", magnus::function!(crate::encode, 3))?;
+    native.define_module_function("decode", magnus::function!(crate::decode, 5))?;
+    native.define_module_function("encode", magnus::function!(crate::encode, 4))?;
     native.define_module_function("scan", magnus::function!(crate::scan, 3))?;
     native.define_module_function("read_head", magnus::function!(crate::read_head, 2))?;
     native.define_module_function("encode_head", magnus::function!(crate::encode_head, 2))?;

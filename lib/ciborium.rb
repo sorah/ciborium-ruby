@@ -7,6 +7,7 @@ require_relative "ciborium/tagged"
 require_relative "ciborium/simple"
 require_relative "ciborium/encoded"
 require_relative "ciborium/native"
+require_relative "ciborium/extensions"
 require_relative "ciborium/decode_options"
 require_relative "ciborium/encode_options"
 require_relative "ciborium/encoder"
@@ -22,7 +23,7 @@ module Ciborium
   #: (untyped object, **untyped options) -> String
   def self.encode(object, **options)
     opts = EncodeOptions.build(**options)
-    Native.encode(object, opts.max_depth, opts.fallback)
+    Native.encode(object, opts.max_depth, opts.fallback, opts.class_handlers)
   end
 
   # Decodes a single data item. Raises MalformedError when bytes follow it.
@@ -45,7 +46,7 @@ module Ciborium
   #: (String bytes, **untyped options) -> [untyped, Integer]
   def self.decode_prefix(bytes, **options)
     opts = DecodeOptions.build(**options)
-    Native.decode(bytes, 0, opts.max_depth, opts.flags)
+    Native.decode(bytes, 0, opts.max_depth, opts.flags, opts.handlers)
   end
 
   # Decodes a CBOR sequence (RFC 8742), a concatenation of zero or more data items.
@@ -56,7 +57,7 @@ module Ciborium
     items = [] #: Array[untyped]
     pos = 0
     while pos < bytes.bytesize
-      item, pos = Native.decode(bytes, pos, opts.max_depth, opts.flags)
+      item, pos = Native.decode(bytes, pos, opts.max_depth, opts.flags, opts.handlers)
       items << item
     end
     items

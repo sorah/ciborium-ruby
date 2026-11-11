@@ -7,20 +7,23 @@ module Ciborium
 
     attr_reader fallback(): Proc?
 
-    def self.new: (Integer max_depth, Proc? fallback) -> instance
-                | (max_depth: Integer, fallback: Proc?) -> instance
+    attr_reader class_handlers(): Array[[ Module, ^(untyped) -> untyped ]]?
 
-    def self.members: () -> [ :max_depth, :fallback ]
+    def self.new: (Integer max_depth, Proc? fallback, Array[[ Module, ^(untyped) -> untyped ]]? class_handlers) -> instance
+                | (max_depth: Integer, fallback: Proc?, class_handlers: Array[[ Module, ^(untyped) -> untyped ]]?) -> instance
 
-    def members: () -> [ :max_depth, :fallback ]
+    def self.members: () -> [ :max_depth, :fallback, :class_handlers ]
+
+    def members: () -> [ :max_depth, :fallback, :class_handlers ]
   end
 
   class EncodeOptions
-    # fallback is called with each object the encoder cannot represent, and returns an object
-    # to encode in its place.
+    # extensions lists the allowlisted extensions (see Extensions). fallback is called with each
+    # object neither the encoder nor an extension can represent, and returns an object to encode
+    # in its place.
     #
-    # : (?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
-    def self.build: (?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
+    # : (?extensions: Array[extension], ?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
+    def self.build: (?extensions: Array[extension], ?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
 
     # : (^(untyped) -> untyped fallback) -> Proc
     def self.wrap_fallback: (^(untyped) -> untyped fallback) -> Proc

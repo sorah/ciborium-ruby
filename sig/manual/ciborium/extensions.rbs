@@ -1,0 +1,12 @@
+# Hand-written because rbs-inline cannot declare interfaces or type aliases.
+module Ciborium
+  interface _Extension
+    def tags: () -> Array[Integer]
+    def classes: () -> Array[Module]
+    def decode: (Integer tag, untyped value) -> untyped
+    def encode: (untyped object) -> untyped
+    def inspect: () -> String
+  end
+
+  type extension = Symbol | _Extension
+end

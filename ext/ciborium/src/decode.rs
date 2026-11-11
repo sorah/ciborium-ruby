@@ -23,6 +23,8 @@ pub(crate) struct Decoder<'a> {
     cursor: crate::cursor::Cursor<'a>,
     max_depth: usize,
     flags: u32,
+    // Tag number to a callable taking (tag, content), for allowlisted extensions only.
+    handlers: Option<magnus::RHash>,
     stack: Vec<Frame>,
     // Containers held in `stack` live on the Rust heap, which the GC does not scan.
     pin: magnus::value::BoxValue<magnus::RArray>,
@@ -37,6 +39,7 @@ impl<'a> Decoder<'a> {
         pos: usize,
         max_depth: usize,
         flags: u32,
+        handlers: Option<magnus::RHash>,
     ) -> Result<Self, crate::error::Error> {
         use magnus::Module as _;
         let ciborium = ruby
@@ -47,6 +50,7 @@ impl<'a> Decoder<'a> {
             cursor: crate::cursor::Cursor::new(input, pos),
             max_depth,
             flags,
+            handlers,
             stack: Vec::new(),
             pin: magnus::value::BoxValue::new(ruby.ary_new()),
             tagged_class: ciborium.const_get("Tagged")?,
@@ -236,9 +240,11 @@ impl<'a> Decoder<'a> {
 
     fn tag(&self, tag: u64, value: magnus::Value) -> Result<magnus::Value, crate::error::Error> {
         use magnus::value::ReprValue as _;
-        Ok(self
-            .tagged_class
-            .funcall("new", (self.ruby.integer_from_u64(tag), value))?)
+        let tag = self.ruby.integer_from_u64(tag);
+        if let Some(handler) = self.handlers.and_then(|handlers| handlers.get(tag)) {
+            return Ok(handler.funcall("call", (tag, value))?);
+        }
+        Ok(self.tagged_class.funcall("new", (tag, value))?)
     }
 
     fn string(

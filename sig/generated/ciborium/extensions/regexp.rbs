@@ -1,0 +1,30 @@
+# Generated from lib/ciborium/extensions/regexp.rb with RBS::Inline
+
+module Ciborium
+  module Extensions
+    # Tag 35 as Regexp. Compiling a pattern from untrusted input risks ReDoS, so pass a timeout
+    # unless Regexp.timeout is set.
+    class Regexp
+      FLAGS: Integer
+
+      @timeout: Float?
+
+      # : (?timeout: Float?) -> void
+      def initialize: (?timeout: Float?) -> void
+
+      # : () -> Array[Integer]
+      def tags: () -> Array[Integer]
+
+      # : () -> Array[Module]
+      def classes: () -> Array[Module]
+
+      # : (Integer tag, untyped value) -> ::Regexp
+      def decode: (Integer tag, untyped value) -> ::Regexp
+
+      # Tag 35 has no place for flags, so a Regexp with any is refused rather than changed.
+      #
+      # : (::Regexp object) -> Tagged
+      def encode: (::Regexp object) -> Tagged
+    end
+  end
+end

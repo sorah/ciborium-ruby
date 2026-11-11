@@ -1,0 +1,20 @@
+# Generated from lib/ciborium/extensions/uri.rb with RBS::Inline
+
+module Ciborium
+  module Extensions
+    # Tag 32 (RFC 8949 section 3.4.5.3) as URI.
+    class URI
+      # : () -> Array[Integer]
+      def tags: () -> Array[Integer]
+
+      # : () -> Array[Module]
+      def classes: () -> Array[Module]
+
+      # : (Integer tag, untyped value) -> ::URI::Generic
+      def decode: (Integer tag, untyped value) -> ::URI::Generic
+
+      # : (::URI::Generic object) -> Tagged
+      def encode: (::URI::Generic object) -> Tagged
+    end
+  end
+end

@@ -17,7 +17,7 @@ module Ciborium
 
     #: (untyped object) -> self
     def write(object)
-      @buffer << Native.encode(object, @options.max_depth, @options.fallback)
+      @buffer << Native.encode(object, @options.max_depth, @options.fallback, @options.class_handlers)
       self
     end
 

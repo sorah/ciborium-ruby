@@ -35,7 +35,7 @@ module Ciborium
     #: () -> untyped
     def read
       item_end
-      value, @pos = Native.decode(@buffer, @pos, @options.max_depth, @options.flags)
+      value, @pos = Native.decode(@buffer, @pos, @options.max_depth, @options.flags, @options.handlers)
       value
     end
 

@@ -1,0 +1,20 @@
+# Generated from lib/ciborium/extensions/bignum.rb with RBS::Inline
+
+module Ciborium
+  module Extensions
+    # Tags 2 and 3 (RFC 8949 section 3.4.3): integers outside -2**64..2**64-1 as byte strings.
+    class BigInteger
+      # : () -> Array[Integer]
+      def tags: () -> Array[Integer]
+
+      # : () -> Array[Module]
+      def classes: () -> Array[Module]
+
+      # : (Integer tag, untyped value) -> Integer
+      def decode: (Integer tag, untyped value) -> Integer
+
+      # : (Integer object) -> Tagged
+      def encode: (Integer object) -> Tagged
+    end
+  end
+end

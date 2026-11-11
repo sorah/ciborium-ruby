@@ -23,7 +23,7 @@ task spec: :compile
 desc "Regenerate inline RBS signatures under sig/generated"
 task :rbs do
   sh "rbs-inline --output=sig/generated lib"
-  sh "rbs -I sig/generated -I sig/manual validate"
+  sh "rbs -r time -r uri -I sig/generated -I sig/manual validate"
 end
 
 desc "Type check lib against the RBS signatures"

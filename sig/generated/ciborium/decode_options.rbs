@@ -11,16 +11,21 @@ module Ciborium
 
     attr_reader flags(): Integer
 
-    def self.new: (Integer max_depth, Integer flags) -> instance
-                | (max_depth: Integer, flags: Integer) -> instance
+    attr_reader handlers(): Hash[Integer, ^(Integer, untyped) -> untyped]?
 
-    def self.members: () -> [ :max_depth, :flags ]
+    def self.new: (Integer max_depth, Integer flags, Hash[Integer, ^(Integer, untyped) -> untyped]? handlers) -> instance
+                | (max_depth: Integer, flags: Integer, handlers: Hash[Integer, ^(Integer, untyped) -> untyped]?) -> instance
 
-    def members: () -> [ :max_depth, :flags ]
+    def self.members: () -> [ :max_depth, :flags, :handlers ]
+
+    def members: () -> [ :max_depth, :flags, :handlers ]
   end
 
   class DecodeOptions
-    # : (?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
-    def self.build: (?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
+    # extensions lists the allowlisted extensions (see Extensions); every other tag decodes to
+    # Tagged.
+    #
+    # : (?extensions: Array[extension], ?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
+    def self.build: (?extensions: Array[extension], ?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
   end
 end
