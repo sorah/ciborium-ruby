@@ -1,0 +1,4 @@
+# Generated from lib/ciborium.rb with RBS::Inline
+
+module Ciborium
+end

@@ -2,8 +2,9 @@ amends "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Config.pk
 
 import "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Builtins.pkl"
 
+// sig/generated is rbs-inline output, checked as generated rather than linted.
 // vendor/bundle is where setup-ruby installs gems in CI.
-exclude = List("vendor/**")
+exclude = List("sig/generated/**", "vendor/**")
 
 local linters = new Mapping<String, Step> {
   ["rubocop"] {
@@ -11,6 +12,11 @@ local linters = new Mapping<String, Step> {
     check = "bundle exec rubocop --force-exclusion {{files}}"
     fix = "bundle exec rubocop --force-exclusion --autocorrect {{files}}"
     batch = true
+  }
+  // steep type checks the whole project at once, so no file list is passed.
+  ["steep"] {
+    glob = List("lib/**/*.rb", "sig/**/*.rbs", "Steepfile")
+    check = "bundle exec steep check"
   }
   ["cargo-fmt"] {
     glob = List("ext/**/*.rs")

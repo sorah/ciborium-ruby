@@ -1,0 +1,5 @@
+# Generated from lib/ciborium/version.rb with RBS::Inline
+
+module Ciborium
+  VERSION: String
+end

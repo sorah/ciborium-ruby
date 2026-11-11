@@ -20,4 +20,15 @@ end
 RSpec::Core::RakeTask.new(:spec)
 task spec: :compile
 
-task default: :spec
+desc "Regenerate inline RBS signatures under sig/generated"
+task :rbs do
+  sh "rbs-inline --output=sig/generated lib"
+  sh "rbs -I sig/generated -I sig/manual validate"
+end
+
+desc "Type check lib against the RBS signatures"
+task steep: :rbs do
+  sh "steep check"
+end
+
+task default: [:spec, :steep]

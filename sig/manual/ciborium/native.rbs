@@ -1,0 +1,5 @@
+# Defined by the Rust extension under ext/ciborium, which rbs-inline cannot read.
+module Ciborium
+  module Native
+  end
+end
