@@ -1,3 +1,4 @@
+mod canonical;
 mod cursor;
 mod decode;
 mod encode;
@@ -114,11 +115,13 @@ fn encode(
     ruby: &magnus::Ruby,
     value: magnus::Value,
     max_depth: usize,
+    flags: u32,
     fallback: Option<magnus::Value>,
     class_handlers: Option<magnus::RArray>,
 ) -> Result<magnus::RString, magnus::Error> {
     let run = || -> Result<Vec<u8>, crate::error::Error> {
-        let mut encoder = crate::encode::Encoder::new(ruby, max_depth, fallback, class_handlers)?;
+        let mut encoder =
+            crate::encode::Encoder::new(ruby, max_depth, flags, fallback, class_handlers)?;
         encoder.write(value, 0)?;
         Ok(encoder.into_bytes())
     };
@@ -133,11 +136,12 @@ fn init(ruby: &magnus::Ruby) -> Result<(), magnus::Error> {
     use magnus::Module as _;
     let native = ruby.define_module("Ciborium")?.define_module("Native")?;
     native.define_module_function("decode", magnus::function!(crate::decode, 5))?;
-    native.define_module_function("encode", magnus::function!(crate::encode, 4))?;
+    native.define_module_function("encode", magnus::function!(crate::encode, 5))?;
     native.define_module_function("scan", magnus::function!(crate::scan, 3))?;
     native.define_module_function("read_head", magnus::function!(crate::read_head, 2))?;
     native.define_module_function("encode_head", magnus::function!(crate::encode_head, 2))?;
     native.const_set("FLAG_SYMBOLIZE_KEYS", crate::decode::FLAG_SYMBOLIZE_KEYS)?;
     native.const_set("FLAG_LAST_WINS", crate::decode::FLAG_LAST_WINS)?;
+    native.const_set("FLAG_CTAP2", crate::decode::FLAG_CTAP2)?;
     Ok(())
 }

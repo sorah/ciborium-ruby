@@ -5,6 +5,11 @@ module Ciborium
 
   MAX_DEPTH_LIMIT: Integer
 
+  # Encoding rules a profile enforces beyond well-formedness. :ctap2 is the CTAP2 canonical CBOR
+  # encoding form that WebAuthn requires: no tags, no indefinite lengths, arguments in their
+  # shortest form, and map keys ordered without duplicates.
+  PROFILES: Array[Symbol]
+
   # Decoding options, validated and packed into the arguments the native decoder takes.
   class DecodeOptions < Data
     attr_reader max_depth(): Integer
@@ -23,9 +28,14 @@ module Ciborium
 
   class DecodeOptions
     # extensions lists the allowlisted extensions (see Extensions); every other tag decodes to
-    # Tagged.
+    # Tagged. profile rejects input that breaks one of PROFILES.
     #
-    # : (?extensions: Array[extension], ?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
-    def self.build: (?extensions: Array[extension], ?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol) -> DecodeOptions
+    # : (?extensions: Array[extension], ?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol, ?profile: Symbol?) -> DecodeOptions
+    def self.build: (?extensions: Array[extension], ?symbolize_keys: bool, ?max_depth: Integer, ?duplicate_keys: Symbol, ?profile: Symbol?) -> DecodeOptions
+
+    # Returns whether profile is :ctap2.
+    #
+    # : (Symbol? profile, untyped extensions) -> bool
+    def self.check_profile: (Symbol? profile, untyped extensions) -> bool
   end
 end

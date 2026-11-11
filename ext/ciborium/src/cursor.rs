@@ -13,6 +13,10 @@ impl<'a> Cursor<'a> {
         self.pos
     }
 
+    pub(crate) fn input(&self) -> &'a [u8] {
+        self.input
+    }
+
     pub(crate) fn remaining(&self) -> usize {
         self.input.len().saturating_sub(self.pos)
     }

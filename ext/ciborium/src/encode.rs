@@ -4,6 +4,7 @@ pub(crate) struct Encoder<'a> {
     ruby: &'a magnus::Ruby,
     out: Vec<u8>,
     max_depth: usize,
+    ctap2: bool,
     fallback: Option<magnus::Value>,
     // Pairs of [class, callable] for allowlisted extensions, consulted in order.
     class_handlers: Option<magnus::RArray>,
@@ -17,6 +18,7 @@ impl<'a> Encoder<'a> {
     pub(crate) fn new(
         ruby: &'a magnus::Ruby,
         max_depth: usize,
+        flags: u32,
         fallback: Option<magnus::Value>,
         class_handlers: Option<magnus::RArray>,
     ) -> Result<Self, crate::error::Error> {
@@ -28,6 +30,7 @@ impl<'a> Encoder<'a> {
             ruby,
             out: Vec::new(),
             max_depth,
+            ctap2: flags & crate::decode::FLAG_CTAP2 != 0,
             fallback,
             class_handlers,
             native_module: ciborium.const_get("Native")?,
@@ -230,15 +233,20 @@ impl<'a> Encoder<'a> {
     fn hash(&mut self, hash: magnus::RHash, depth: usize) -> Result<(), crate::error::Error> {
         let len = hash.len();
         self.push(ciborium_ll::Header::Map(Some(len)))?;
+        let start = self.out.len();
+        // Where each pair's value begins and ends, for sorting by key afterwards.
+        let mut pairs = Vec::new();
         let mut failure = None;
-        let mut written = 0;
         hash.foreach(|key: magnus::Value, value: magnus::Value| {
-            let result = self
-                .write(key, depth + 1)
-                .and_then(|()| self.write(value, depth + 1));
+            let key_start = self.out.len();
+            let result = self.write(key, depth + 1).and_then(|()| {
+                let value_start = self.out.len();
+                self.write(value, depth + 1)?;
+                Ok((key_start, value_start, self.out.len()))
+            });
             match result {
-                Ok(()) => {
-                    written += 1;
+                Ok(pair) => {
+                    pairs.push(pair);
                     Ok(magnus::r_hash::ForEach::Continue)
                 }
                 Err(error) => {
@@ -250,16 +258,44 @@ impl<'a> Encoder<'a> {
         if let Some(error) = failure {
             return Err(error);
         }
-        if written != len || hash.len() != len {
+        if pairs.len() != len || hash.len() != len {
             return Err(crate::error::Error::Encode(
                 "hash was modified during encoding".to_owned(),
             ));
+        }
+        if self.ctap2 {
+            self.sort_pairs(start, &mut pairs)?;
+        }
+        Ok(())
+    }
+
+    /// Reorders the pairs written since `start` into the ctap2 profile's key order.
+    fn sort_pairs(
+        &mut self,
+        start: usize,
+        pairs: &mut [(usize, usize, usize)],
+    ) -> Result<(), crate::error::Error> {
+        let body = self.out.split_off(start);
+        let key = |&(from, to, _): &(usize, usize, usize)| &body[from - start..to - start];
+        pairs.sort_by(|a, b| crate::canonical::Ctap2::key_order(key(a), key(b)));
+        if pairs.windows(2).any(|w| key(&w[0]) == key(&w[1])) {
+            return Err(crate::error::Error::Encode(
+                "two map keys have the same encoding".to_owned(),
+            ));
+        }
+        for &(from, _, to) in pairs.iter() {
+            self.out.extend_from_slice(&body[from - start..to - start]);
         }
         Ok(())
     }
 
     fn tagged(&mut self, tagged: magnus::Value, depth: usize) -> Result<(), crate::error::Error> {
         use magnus::value::ReprValue as _;
+        if self.ctap2 {
+            return Err(crate::error::Error::Encode(
+                "tags are not allowed by the ctap2 profile".to_owned(),
+            ));
+        }
         let tag: u64 = tagged.funcall("tag", ())?;
         let value: magnus::Value = tagged.funcall("value", ())?;
         self.push(ciborium_ll::Header::Tag(tag))?;
@@ -268,6 +304,11 @@ impl<'a> Encoder<'a> {
 
     /// Splices pre-encoded bytes after checking they hold exactly one well-formed item.
     fn raw(&mut self, bytes: magnus::RString, depth: usize) -> Result<(), crate::error::Error> {
+        if self.ctap2 {
+            return Err(crate::error::Error::Encode(
+                "Encoded cannot be checked against the ctap2 profile".to_owned(),
+            ));
+        }
         crate::with_frozen_bytes(bytes, |input| {
             let end = crate::scan::Scanner::new(input, 0, self.max_depth - depth)
                 .scan()

@@ -17,7 +17,7 @@ module Ciborium
 
     #: (untyped object) -> self
     def write(object)
-      @buffer << Native.encode(object, @options.max_depth, @options.fallback, @options.class_handlers)
+      @buffer << Native.encode(object, @options.max_depth, @options.flags, @options.fallback, @options.class_handlers)
       self
     end
 
@@ -39,6 +39,8 @@ module Ciborium
     #
     #: (Integer tag) -> self
     def write_tag(tag)
+      raise EncodeError, "tags are not allowed by the ctap2 profile" if @options.flags & Native::FLAG_CTAP2 != 0
+
       write_head(6, tag)
     end
 

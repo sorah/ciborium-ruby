@@ -3,10 +3,11 @@ module Ciborium
   module Native
     FLAG_SYMBOLIZE_KEYS: Integer
     FLAG_LAST_WINS: Integer
+    FLAG_CTAP2: Integer
 
     def self.decode: (String input, Integer offset, Integer max_depth, Integer flags, Hash[Integer, ^(Integer, untyped) -> untyped]? handlers) -> [untyped, Integer]
 
-    def self.encode: (untyped value, Integer max_depth, Proc? fallback, Array[[Module, ^(untyped) -> untyped]]? class_handlers) -> String
+    def self.encode: (untyped value, Integer max_depth, Integer flags, Proc? fallback, Array[[Module, ^(untyped) -> untyped]]? class_handlers) -> String
 
     def self.scan: (String input, Integer offset, Integer max_depth) -> Integer?
 

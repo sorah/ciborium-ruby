@@ -5,6 +5,7 @@ module Ciborium
   # Encoding options, validated into the arguments the native encoder takes.
   EncodeOptions = Data.define(
     :max_depth, #: Integer
+    :flags, #: Integer
     :fallback, #: Proc?
     :class_handlers, #: Array[[Module, ^(untyped) -> untyped]]?
   )
@@ -12,16 +13,17 @@ module Ciborium
   class EncodeOptions
     # extensions lists the allowlisted extensions (see Extensions). fallback is called with each
     # object neither the encoder nor an extension can represent, and returns an object to encode
-    # in its place.
+    # in its place. profile makes the output follow one of PROFILES, sorting map keys.
     #
-    #: (?extensions: Array[extension], ?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?) -> EncodeOptions
-    def self.build(extensions: [], max_depth: DEFAULT_MAX_DEPTH, fallback: nil)
+    #: (?extensions: Array[extension], ?max_depth: Integer, ?fallback: (^(untyped) -> untyped)?, ?profile: Symbol?) -> EncodeOptions
+    def self.build(extensions: [], max_depth: DEFAULT_MAX_DEPTH, fallback: nil, profile: nil)
       unless max_depth.is_a?(Integer) && max_depth.between?(1, MAX_DEPTH_LIMIT)
         raise ArgumentError, "max_depth must be an Integer in 1..#{MAX_DEPTH_LIMIT}, got #{max_depth.inspect}"
       end
 
       new(
         max_depth:,
+        flags: DecodeOptions.check_profile(profile, extensions) ? Native::FLAG_CTAP2 : 0,
         fallback: fallback && wrap_fallback(fallback),
         class_handlers: Extensions.class_handlers(Extensions.resolve(extensions)),
       )

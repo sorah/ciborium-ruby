@@ -1,5 +1,6 @@
 pub(crate) const FLAG_SYMBOLIZE_KEYS: u32 = 1;
 pub(crate) const FLAG_LAST_WINS: u32 = 1 << 1;
+pub(crate) const FLAG_CTAP2: u32 = 1 << 2;
 
 enum Frame {
     Array {
@@ -10,6 +11,9 @@ enum Frame {
         hash: magnus::RHash,
         remaining: Option<usize>,
         key: Option<magnus::Value>,
+        // Byte ranges of the current and the previous key, for the ctap2 profile's ordering.
+        key_start: usize,
+        previous_key: Option<(usize, usize)>,
     },
     Tag {
         tag: u64,
@@ -67,7 +71,19 @@ impl<'a> Decoder<'a> {
         use magnus::value::ReprValue as _;
         loop {
             let start = self.cursor.pos();
-            let value = match self.cursor.head()? {
+            if let Some(Frame::Map {
+                key: None,
+                key_start,
+                ..
+            }) = self.stack.last_mut()
+            {
+                *key_start = start;
+            }
+            let header = self.cursor.head()?;
+            if self.flags & FLAG_CTAP2 != 0 {
+                crate::canonical::Ctap2::check_head(self.cursor.input()[start], &header, start)?;
+            }
+            let value = match header {
                 ciborium_ll::Header::Positive(n) => self.ruby.integer_from_u64(n).as_value(),
                 ciborium_ll::Header::Negative(n) => self.negative(n)?,
                 ciborium_ll::Header::Float(f) => self.ruby.float_from_f64(f).as_value(),
@@ -97,6 +113,8 @@ impl<'a> Decoder<'a> {
                             hash,
                             remaining: len,
                             key: None,
+                            key_start: 0,
+                            previous_key: None,
                         })?;
                         continue;
                     }
@@ -159,8 +177,27 @@ impl<'a> Decoder<'a> {
                     hash,
                     remaining,
                     key,
+                    key_start,
+                    previous_key,
                 }) => {
                     let Some(k) = key.take() else {
+                        if self.flags & FLAG_CTAP2 != 0 {
+                            let current = (*key_start, self.cursor.pos());
+                            let input = self.cursor.input();
+                            if let Some((from, to)) = *previous_key {
+                                let order = crate::canonical::Ctap2::key_order(
+                                    &input[from..to],
+                                    &input[current.0..current.1],
+                                );
+                                if order != std::cmp::Ordering::Less {
+                                    return Err(crate::error::Error::malformed(format!(
+                                        "map key at offset {} is not in canonical order",
+                                        current.0
+                                    )));
+                                }
+                            }
+                            *previous_key = Some(current);
+                        }
                         *key = Some(value);
                         self.pin.push(value)?;
                         return Ok(None);
@@ -206,6 +243,7 @@ impl<'a> Decoder<'a> {
                 hash,
                 remaining: None,
                 key: None,
+                ..
             }) => hash.as_value(),
             _ => {
                 return Err(crate::error::Error::malformed(format!(

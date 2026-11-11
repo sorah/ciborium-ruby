@@ -23,7 +23,7 @@ module Ciborium
   #: (untyped object, **untyped options) -> String
   def self.encode(object, **options)
     opts = EncodeOptions.build(**options)
-    Native.encode(object, opts.max_depth, opts.fallback, opts.class_handlers)
+    Native.encode(object, opts.max_depth, opts.flags, opts.fallback, opts.class_handlers)
   end
 
   # Decodes a single data item. Raises MalformedError when bytes follow it.
