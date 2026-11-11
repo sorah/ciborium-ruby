@@ -1,0 +1,95 @@
+# Generated from lib/ciborium/compat/buffer.rb with RBS::Inline
+
+module Ciborium
+  module Compat
+    # A byte queue in front of an optional IO, as CBOR::Buffer of the cbor gem: reads refill from
+    # the IO when the queue runs dry, and writes go out to it once the queue fills.
+    class Buffer
+      DEFAULT_IO_BUFFER_SIZE: Integer
+
+      @pos: Integer
+
+      @data: String
+
+      @io_buffer_size: Integer
+
+      @io: untyped
+
+      attr_reader io: untyped
+
+      # The cbor gem's read_reference_threshold and write_reference_threshold tune its chunk
+      # sharing, which this buffer does not do, so they are accepted and ignored.
+      #
+      # : (?untyped io, ?Hash[Symbol, untyped]? options) -> void
+      def initialize: (?untyped io, ?Hash[Symbol, untyped]? options) -> void
+
+      # : () -> nil
+      def clear: () -> nil
+
+      # : () -> Integer
+      def size: () -> Integer
+
+      # : () -> bool
+      def empty?: () -> bool
+
+      # : (String data) -> Integer
+      def write: (String data) -> Integer
+
+      # : (String data) -> self
+      def <<: (String data) -> self
+
+      # Consumes up to n bytes, or everything without n, refilling from the IO until it ends.
+      # Returns nil when n is positive and nothing is left.
+      #
+      # : (?Integer? n, ?String? out) -> String?
+      def read: (?Integer? n, ?String? out) -> String?
+
+      # Consumes exactly n bytes, or everything without n. Raises EOFError, consuming nothing,
+      # when fewer than n bytes are left.
+      #
+      # : (?Integer? n, ?String? out) -> String
+      def read_all: (?Integer? n, ?String? out) -> String
+
+      # Consumes up to n bytes and returns how many it consumed.
+      #
+      # : (Integer n) -> Integer
+      def skip: (Integer n) -> Integer
+
+      # Consumes exactly n bytes, or raises EOFError consuming nothing.
+      #
+      # : (Integer n) -> self
+      def skip_all: (Integer n) -> self
+
+      # : () -> String
+      def to_str: () -> String
+
+      # : () -> Array[String]
+      def to_a: () -> Array[String]
+
+      # Writes the queued bytes to the IO, if there is one.
+      #
+      # : () -> self
+      def flush: () -> self
+
+      # : () -> nil
+      def close: () -> nil
+
+      # Writes the queued bytes to io and consumes them.
+      #
+      # : (untyped io) -> Integer
+      def write_to: (untyped io) -> Integer
+
+      # : (Integer? n) -> void
+      private def fill: (Integer? n) -> void
+
+      # : () -> String?
+      private def read_io: () -> String?
+
+      # : (Integer n) -> String
+      private def take: (Integer n) -> String
+
+      # : (String? out, String data) -> String
+      private def replace: (String? out, String data) -> String
+    end
+  end
+end

@@ -1,0 +1,58 @@
+# Generated from lib/ciborium/compat.rb with RBS::Inline
+
+module Ciborium
+  # The interface of the cbor gem (CBOR), implemented on top of Ciborium. Tag extensions follow
+  # Compat.extensions, so a tag that is not allowlisted decodes to Tagged. require
+  # "ciborium/replace" to install it as CBOR.
+  module Compat
+    Tagged: untyped
+
+    Simple: untyped
+
+    # bignum keeps big Integers transparent, as the cbor gem does, and builds nothing but an
+    # Integer from the input.
+    DEFAULT_EXTENSIONS: Array[extension]
+
+    self.@extensions: Array[extension]
+
+    # The extensions every Compat entry point uses, process-wide.
+    #
+    # : () -> Array[extension]
+    def self.extensions: () -> Array[extension]
+
+    # : (Array[extension] extensions) -> void
+    def self.extensions=: (Array[extension] extensions) -> void
+
+    # Options for Ciborium::Encoder that reproduce the cbor gem's encoding.
+    #
+    # : () -> Hash[Symbol, untyped]
+    def self.encode_options: () -> Hash[Symbol, untyped]
+
+    # Options for Ciborium::Decoder that reproduce the cbor gem's decoding.
+    #
+    # : () -> Hash[Symbol, untyped]
+    def self.decode_options: () -> Hash[Symbol, untyped]
+
+    # Encodes object, or writes it to io and returns nil when io is given.
+    #
+    # : (untyped object, ?untyped io) -> String?
+    def self.encode: (untyped object, ?untyped io) -> String?
+
+    # Decodes a single item from a String, or from all that an IO holds.
+    #
+    # options is {symbolize_keys: true}, or :keys_as_symbols.
+    #
+    # : (untyped source, ?(Hash[Symbol, untyped] | Symbol)? options) -> untyped
+    def self.decode: (untyped source, ?(Hash[Symbol, untyped] | Symbol)? options) -> untyped
+
+    # Encodes an object Ciborium cannot represent through its own to_cbor(packer), as the cbor
+    # gem does.
+    FALLBACK: ^(untyped) -> untyped
+
+    # to_cbor for the classes the cbor gem extends. Installed by ciborium/replace.
+    module CoreExt
+      # : (?untyped packer_or_io) -> untyped
+      def to_cbor: (?untyped packer_or_io) -> untyped
+    end
+  end
+end

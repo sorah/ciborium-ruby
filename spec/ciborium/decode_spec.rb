@@ -131,17 +131,18 @@ RSpec.describe(Ciborium) do
 
   describe Ciborium::Tagged do
     it "rejects tags outside 0..2**64-1" do
-      expect { Ciborium::Tagged.new(-1, 0) }.to(raise_error(ArgumentError))
-      expect { Ciborium::Tagged.new(2**64, 0) }.to(raise_error(ArgumentError))
-      expect { Ciborium::Tagged.new("1", 0) }.to(raise_error(ArgumentError))
+      expect { Ciborium::Tagged.new(-1, 0) }.to(raise_error(RangeError))
+      expect { Ciborium::Tagged.new(2**64, 0) }.to(raise_error(RangeError))
+      expect { Ciborium::Tagged.new("1", 0) }.to(raise_error(TypeError))
     end
   end
 
   describe Ciborium::Simple do
     it "rejects reserved and out-of-range values" do
-      [24, 31, 256, -1, nil].each do |value|
-        expect { Ciborium::Simple.new(value) }.to(raise_error(ArgumentError))
+      [24, 31, 256, -1].each do |value|
+        expect { Ciborium::Simple.new(value) }.to(raise_error(RangeError))
       end
+      expect { Ciborium::Simple.new(nil) }.to(raise_error(TypeError))
     end
   end
 end

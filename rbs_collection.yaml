@@ -11,6 +11,8 @@ path: .gem_rbs_collection
 
 gems:
   # Development-only tooling; nothing in lib/ calls it.
+  - name: cbor
+    ignore: true
   - name: rb_sys
     ignore: true
   - name: rake-compiler

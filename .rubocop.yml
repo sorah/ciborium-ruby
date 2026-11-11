@@ -5,6 +5,9 @@ AllCops:
   TargetRubyVersion: 3.3
   SuggestExtensions: false
   Exclude:
+    # The cbor gem's specs, kept as they were copied.
+    - 'spec/upstream/*_spec.rb'
+    - 'spec/upstream/random_compat.rb'
     - 'tmp/**/*'
     - 'pkg/**/*'
     - 'vendor/**/*'

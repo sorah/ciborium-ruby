@@ -9,9 +9,8 @@ module Ciborium
     MAX_TAG = 2**64 - 1
 
     def initialize(tag:, value:)
-      unless tag.is_a?(Integer) && tag.between?(0, MAX_TAG)
-        raise ArgumentError, "tag must be an Integer between 0 and 2**64-1, got #{tag.inspect}"
-      end
+      raise ::TypeError, "tag must be an Integer, got #{tag.inspect}" unless tag.is_a?(Integer)
+      raise ::RangeError, "tag must be between 0 and 2**64-1, got #{tag}" unless tag.between?(0, MAX_TAG)
 
       super
     end

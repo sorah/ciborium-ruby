@@ -2,9 +2,18 @@ amends "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Config.pk
 
 import "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Builtins.pkl"
 
-// sig/generated is rbs-inline output, checked as generated rather than linted.
+// sig/generated is rbs-inline output, checked as generated rather than linted. spec/upstream holds
+// the cbor gem's specs, kept as they were copied apart from its spec_helper.rb.
 // vendor/bundle is where setup-ruby installs gems in CI.
-exclude = List("sig/generated/**", "vendor/**")
+exclude =
+  List(
+    "sig/generated/**",
+    "spec/upstream/*_spec.rb",
+    "spec/upstream/random_compat.rb",
+    "spec/upstream/cases.*",
+    "spec/upstream/LICENSE.txt",
+    "vendor/**",
+  )
 
 local linters = new Mapping<String, Step> {
   ["rubocop"] {

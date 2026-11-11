@@ -1,0 +1,30 @@
+# frozen_string_literal: true
+# rbs_inline: enabled
+
+module Ciborium
+  module Compat
+    class UnpackError < StandardError; end
+
+    class MalformedFormatError < UnpackError; end
+
+    class StackError < UnpackError; end
+
+    # Raised by Unpacker#read_array_header and #read_map_header on an item of another type.
+    class TypeError < StandardError; end
+
+    # Raises the cbor gem's exception for a Ciborium decoding failure, keeping it as the cause.
+    #
+    #: [T] () { () -> T } -> T
+    def self.translate_errors
+      yield
+    rescue IncompleteError
+      raise ::EOFError, "end of buffer reached"
+    rescue DepthError
+      raise StackError, "nesting too deep"
+    rescue UnexpectedTypeError
+      raise TypeError, "unexpected type"
+    rescue DecodeError
+      raise MalformedFormatError, "malformed CBOR"
+    end
+  end
+end

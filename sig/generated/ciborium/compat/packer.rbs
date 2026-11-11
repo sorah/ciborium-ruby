@@ -1,0 +1,53 @@
+# Generated from lib/ciborium/compat/packer.rb with RBS::Inline
+
+module Ciborium
+  module Compat
+    # CBOR::Packer of the cbor gem, writing through Ciborium::Encoder.
+    class Packer
+      @buffer: Buffer
+
+      @encoder: Ciborium::Encoder
+
+      attr_reader buffer: Buffer
+
+      # : (?untyped io, ?Hash[Symbol, untyped]? options) -> void
+      def initialize: (?untyped io, ?Hash[Symbol, untyped]? options) -> void
+
+      # : (untyped object) -> self
+      def write: (untyped object) -> self
+
+      # : () -> self
+      def write_nil: () -> self
+
+      # : (Integer length) -> self
+      def write_array_header: (Integer length) -> self
+
+      # : (Integer length) -> self
+      def write_map_header: (Integer length) -> self
+
+      # : () -> self
+      def flush: () -> self
+
+      # : () -> nil
+      def clear: () -> nil
+
+      # : () -> Integer
+      def size: () -> Integer
+
+      # : () -> bool
+      def empty?: () -> bool
+
+      # : (untyped io) -> Integer
+      def write_to: (untyped io) -> Integer
+
+      # : () -> String
+      def to_str: () -> String
+
+      # : () -> Array[String]
+      def to_a: () -> Array[String]
+
+      # : () -> self
+      private def drain: () -> self
+    end
+  end
+end

@@ -1,0 +1,5 @@
+# The part of RubyGems that ciborium/replace calls and core RBS does not declare.
+class Gem::Specification
+  def self.find_by_path: (String path) -> Gem::Specification?
+  def full_require_paths: () -> Array[String]
+end

@@ -7,9 +7,10 @@ module Ciborium
 
   class Simple
     def initialize(value:)
+      raise ::TypeError, "simple value must be an Integer, got #{value.inspect}" unless value.is_a?(Integer)
       # 24 to 31 are reserved, so no well-formed encoding exists for them.
-      unless value.is_a?(Integer) && (value.between?(0, 23) || value.between?(32, 255))
-        raise ArgumentError, "simple value must be an Integer in 0..23 or 32..255, got #{value.inspect}"
+      unless value.between?(0, 23) || value.between?(32, 255)
+        raise ::RangeError, "simple value must be in 0..23 or 32..255, got #{value}"
       end
 
       super

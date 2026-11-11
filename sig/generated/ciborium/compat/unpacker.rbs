@@ -1,0 +1,59 @@
+# Generated from lib/ciborium/compat/unpacker.rb with RBS::Inline
+
+module Ciborium
+  module Compat
+    # CBOR::Unpacker of the cbor gem, reading through Ciborium::Decoder. Input passes through
+    # buffer, which also reads from io when more is needed.
+    class Unpacker
+      @buffer: Buffer
+
+      @decoder: Ciborium::Decoder
+
+      attr_reader buffer: Buffer
+
+      # options takes symbolize_keys, and the Buffer options.
+      #
+      # : (?untyped io, ?Hash[Symbol, untyped]? options) -> void
+      def initialize: (?untyped io, ?Hash[Symbol, untyped]? options) -> void
+
+      # : (String data) -> self
+      def feed: (String data) -> self
+
+      # : () -> untyped
+      def read: () -> untyped
+
+      # : () -> nil
+      def skip: () -> nil
+
+      # Whether the next item is null. Consumes nothing.
+      #
+      # : () -> bool
+      def skip_nil: () -> bool
+
+      # : () -> Integer
+      def read_array_header: () -> Integer
+
+      # : () -> Integer
+      def read_map_header: () -> Integer
+
+      # Yields each item until the input runs out, leaving a partial item buffered.
+      #
+      # : () { (untyped) -> void } -> nil
+      # : () -> Enumerator[untyped, nil]
+      def each: () { (untyped) -> void } -> nil
+              | () -> Enumerator[untyped, nil]
+
+      # : (String data) { (untyped) -> void } -> nil
+      def feed_each: (String data) { (untyped) -> void } -> nil
+
+      # : () -> nil
+      def reset: () -> nil
+
+      # Runs the block on the decoder, moving more input into it until the block stops raising
+      # IncompleteError or the input ends.
+      #
+      # : [T] () { () -> T } -> T
+      private def with_input: [T] () { () -> T } -> T
+    end
+  end
+end

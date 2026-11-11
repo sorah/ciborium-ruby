@@ -20,10 +20,22 @@ end
 RSpec::Core::RakeTask.new(:spec)
 task spec: :compile
 
+namespace :spec do
+  desc "Run the cbor gem's specs against Ciborium::Compat, with default and with all extensions"
+  task upstream: :compile do
+    ["default", "all"].each do |mode|
+      sh(
+        {"CIBORIUM_UPSTREAM_EXTENSIONS" => mode}, "rspec", "--options", "spec/upstream/.rspec", "-I", "spec/upstream",
+        "--default-path", "spec/upstream", "spec/upstream"
+      )
+    end
+  end
+end
+
 desc "Regenerate inline RBS signatures under sig/generated"
 task :rbs do
   sh "rbs-inline --output=sig/generated lib"
-  sh "rbs -r time -r uri -I sig/generated -I sig/manual validate"
+  sh "rbs -r time -r uri -I sig/generated -I sig/manual -I sig-stub validate"
 end
 
 desc "Type check lib against the RBS signatures"
@@ -31,4 +43,4 @@ task steep: :rbs do
   sh "steep check"
 end
 
-task default: [:spec, :steep]
+task default: [:spec, "spec:upstream", :steep]
