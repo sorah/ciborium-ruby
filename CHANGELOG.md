@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 (2026-11-11)
 
 - Decode every NaN to `Float::NAN`. Repeated NaN map keys are now duplicate keys, instead of costing time quadratic in their number.
 - Fix decoding when GC compaction runs mid-decode, such as under `GC.auto_compact` or inside an extension, which could raise a spurious duplicate key error or crash.
