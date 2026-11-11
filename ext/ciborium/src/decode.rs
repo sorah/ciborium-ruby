@@ -40,6 +40,9 @@ pub(crate) struct Decoder<'a> {
     pin: magnus::RArray,
     tagged_class: magnus::RClass,
     simple_class: magnus::RClass,
+    // Float::NAN, which every NaN decodes to. Separate NaN Floats are never eql?, so as map keys
+    // each would collide with every earlier one.
+    nan: magnus::Value,
 }
 
 impl<'a> Decoder<'a> {
@@ -65,6 +68,7 @@ impl<'a> Decoder<'a> {
             pin: ruby.ary_new(),
             tagged_class: ciborium.const_get("Tagged")?,
             simple_class: ciborium.const_get("Simple")?,
+            nan: ruby.class_float().const_get("NAN")?,
         })
     }
 
@@ -97,6 +101,7 @@ impl<'a> Decoder<'a> {
             let value = match header {
                 ciborium_ll::Header::Positive(n) => self.ruby.integer_from_u64(n).as_value(),
                 ciborium_ll::Header::Negative(n) => self.negative(n)?,
+                ciborium_ll::Header::Float(f) if f.is_nan() => self.nan,
                 ciborium_ll::Header::Float(f) => self.ruby.float_from_f64(f).as_value(),
                 ciborium_ll::Header::Simple(n) => self.simple(n)?,
                 ciborium_ll::Header::Bytes(len) => self.string(len, false)?,

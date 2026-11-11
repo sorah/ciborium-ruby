@@ -58,6 +58,17 @@ RSpec.describe(Ciborium) do
       expect { Ciborium.decode(hex("a201010102")) }.to(raise_error(Ciborium::MalformedError, /duplicate/))
     end
 
+    it "raises MalformedError on duplicate NaN keys, alone or inside a container" do
+      expect { Ciborium.decode(hex("a2f97e0001fb7ff800000000000002")) }.to(raise_error(Ciborium::MalformedError, /duplicate/))
+      expect { Ciborium.decode(hex("a281f97e000181f97e0002")) }.to(raise_error(Ciborium::MalformedError, /duplicate/))
+    end
+
+    it "collapses many NaN keys into one with duplicate_keys: :last_wins" do
+      decoded = Ciborium.decode(hex("ba00002710") + (hex("f97e00") + "\x00".b) * 10_000, duplicate_keys: :last_wins)
+      expect(decoded.size).to(eq(1))
+      expect(decoded.keys.first).to(be_nan)
+    end
+
     it "keeps the last value of a duplicate key with duplicate_keys: :last_wins" do
       expect(Ciborium.decode(hex("a201010102"), duplicate_keys: :last_wins)).to(eq({1 => 2}))
     end

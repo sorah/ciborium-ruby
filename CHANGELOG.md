@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Decode every NaN to `Float::NAN`. Repeated NaN map keys are now duplicate keys, instead of costing time quadratic in their number.
+
 ## 0.1.0 (2026-11-11)
 
 - Initial release: a CBOR encoder and decoder backed by a Rust extension, where tags carry meaning only through allowlisted extensions.
