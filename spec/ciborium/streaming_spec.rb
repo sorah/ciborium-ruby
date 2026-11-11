@@ -83,6 +83,17 @@ RSpec.describe(Ciborium::Decoder) do
     expect(decoder.read).to(eq("a"))
   end
 
+  it "rejects headers not in their shortest form under the ctap2 profile" do
+    decoder = Ciborium::Decoder.new(profile: :ctap2)
+    decoder.feed(hex("980101b8010101"))
+    expect { decoder.read_array_header }.to(raise_error(Ciborium::MalformedError, /shortest form/))
+    decoder.reset.feed(hex("b8010101"))
+    expect { decoder.read_map_header }.to(raise_error(Ciborium::MalformedError, /shortest form/))
+    decoder.reset.feed(hex("81a10101"))
+    expect(decoder.read_array_header).to(eq(1))
+    expect(decoder.read_map_header).to(eq(1))
+  end
+
   it "raises UnexpectedTypeError on a header of another type" do
     decoder.feed(hex("9f01ff"))
     expect { decoder.read_array_header }.to(raise_error(Ciborium::UnexpectedTypeError))

@@ -57,10 +57,12 @@ fn scan(
 
 /// Reads the head at `offset` as `[major type, argument, end offset]`, or nil when the input
 /// ends before it does. The argument is nil for indefinite lengths and for major type 7.
+/// `flags` are those of `decode`, of which only the ctap2 profile applies.
 fn read_head(
     ruby: &magnus::Ruby,
     input: magnus::RString,
     offset: usize,
+    flags: u32,
 ) -> Result<Option<(u8, Option<u64>, usize)>, magnus::Error> {
     // SAFETY: reading a head runs no Ruby code, so nothing can modify or free the string meanwhile.
     let mut cursor = crate::cursor::Cursor::new(unsafe { input.as_slice() }, offset);
@@ -69,6 +71,10 @@ fn read_head(
         Err(crate::error::Error::Incomplete) => return Ok(None),
         Err(error) => return Err(error.into_ruby(ruby)),
     };
+    if flags & crate::decode::FLAG_CTAP2 != 0 {
+        crate::canonical::Ctap2::check_head(cursor.input()[offset], &header, offset)
+            .map_err(|error| error.into_ruby(ruby))?;
+    }
     let (major, argument) = match header {
         ciborium_ll::Header::Positive(n) => (0, Some(n)),
         ciborium_ll::Header::Negative(n) => (1, Some(n)),
@@ -144,7 +150,7 @@ fn init(ruby: &magnus::Ruby) -> Result<(), magnus::Error> {
     let scan_state = native.define_class("ScanState", ruby.class_object())?;
     scan_state.define_singleton_method("new", magnus::function!(crate::scan::ScanState::new, 0))?;
     scan_state.define_method("clear", magnus::method!(crate::scan::ScanState::clear, 0))?;
-    native.define_module_function("read_head", magnus::function!(crate::read_head, 2))?;
+    native.define_module_function("read_head", magnus::function!(crate::read_head, 3))?;
     native.define_module_function("encode_head", magnus::function!(crate::encode_head, 2))?;
     native.const_set("FLAG_SYMBOLIZE_KEYS", crate::decode::FLAG_SYMBOLIZE_KEYS)?;
     native.const_set("FLAG_LAST_WINS", crate::decode::FLAG_LAST_WINS)?;

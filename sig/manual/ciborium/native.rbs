@@ -16,7 +16,7 @@ module Ciborium
       def clear: () -> void
     end
 
-    def self.read_head: (String input, Integer offset) -> [Integer, Integer?, Integer]?
+    def self.read_head: (String input, Integer offset, Integer flags) -> [Integer, Integer?, Integer]?
 
     def self.encode_head: (Integer major, Integer argument) -> String
   end

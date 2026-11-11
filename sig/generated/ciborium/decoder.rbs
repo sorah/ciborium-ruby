@@ -48,7 +48,8 @@ module Ciborium
     # : () -> Integer
     def read_array_header: () -> Integer
 
-    # Reads the head of a definite-length map and returns its number of pairs.
+    # Reads the head of a definite-length map and returns its number of pairs. Keys read one by
+    # one afterwards are not checked for duplicates or, under the ctap2 profile, for their order.
     #
     # : () -> Integer
     def read_map_header: () -> Integer

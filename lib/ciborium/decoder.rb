@@ -69,7 +69,8 @@ module Ciborium
       read_container_head(4, "array")
     end
 
-    # Reads the head of a definite-length map and returns its number of pairs.
+    # Reads the head of a definite-length map and returns its number of pairs. Keys read one by
+    # one afterwards are not checked for duplicates or, under the ctap2 profile, for their order.
     #
     #: () -> Integer
     def read_map_header
@@ -116,7 +117,7 @@ module Ciborium
 
     #: (Integer major, String name) -> Integer
     private def read_container_head(major, name)
-      head = Native.read_head(@buffer, @pos)
+      head = Native.read_head(@buffer, @pos, @options.flags)
       raise IncompleteError, "unexpected end of input" unless head
 
       actual, length, pos = head
