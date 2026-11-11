@@ -14,7 +14,7 @@ echo "::add-mask::${jwt}"
 
 key="$(
   jq -n --arg jwt "${jwt}" --arg owner "${RUBYGEMS_OWNER}" '{jwt: $jwt, owner: $owner}' |
-    curl -fsS --fail-with-body -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' \
+    curl -sS --fail-with-body -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' \
       --data-binary @- https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token |
     jq -r .rubygems_api_key
 )"
