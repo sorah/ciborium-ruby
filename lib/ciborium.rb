@@ -9,6 +9,8 @@ require_relative "ciborium/encoded"
 require_relative "ciborium/native"
 require_relative "ciborium/decode_options"
 require_relative "ciborium/encode_options"
+require_relative "ciborium/encoder"
+require_relative "ciborium/decoder"
 
 # A CBOR (RFC 8949) encoder and decoder. Tags carry no meaning unless an extension for them is
 # allowlisted.

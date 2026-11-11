@@ -7,5 +7,11 @@ module Ciborium
     def self.decode: (String input, Integer offset, Integer max_depth, Integer flags) -> [untyped, Integer]
 
     def self.encode: (untyped value, Integer max_depth, Proc? fallback) -> String
+
+    def self.scan: (String input, Integer offset, Integer max_depth) -> Integer?
+
+    def self.read_head: (String input, Integer offset) -> [Integer, Integer?, Integer]?
+
+    def self.encode_head: (Integer major, Integer argument) -> String
   end
 end

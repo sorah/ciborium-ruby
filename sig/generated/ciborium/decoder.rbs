@@ -1,0 +1,76 @@
+# Generated from lib/ciborium/decoder.rb with RBS::Inline
+
+module Ciborium
+  # Decodes data items from input that arrives in parts. Nothing is consumed until a whole item
+  # has arrived, so reads that raise IncompleteError can be retried after feeding more.
+  class Decoder
+    include Enumerable[untyped]
+
+    # Consumed bytes are dropped from the buffer once they exceed this size.
+    COMPACT_THRESHOLD: Integer
+
+    @pos: Integer
+
+    @buffer: String
+
+    @options: DecodeOptions
+
+    # Options are those of DecodeOptions.build.
+    #
+    # : (**untyped options) -> void
+    def initialize: (**untyped options) -> void
+
+    # : (String bytes) -> self
+    def feed: (String bytes) -> self
+
+    # Decodes the next item. Raises IncompleteError when it has not fully arrived.
+    #
+    # : () -> untyped
+    def read: () -> untyped
+
+    # Yields each item that has fully arrived, leaving a partial one buffered.
+    #
+    # : () { (untyped) -> void } -> self
+    # : () -> Enumerator[untyped, self]
+    def each: () { (untyped) -> void } -> self
+            | () -> Enumerator[untyped, self]
+
+    # Skips the next item without decoding it.
+    #
+    # : () -> self
+    def skip: () -> self
+
+    # Reads the head of a definite-length array and returns its length, leaving the elements to
+    # be read one by one.
+    #
+    # : () -> Integer
+    def read_array_header: () -> Integer
+
+    # Reads the head of a definite-length map and returns its number of pairs.
+    #
+    # : () -> Integer
+    def read_map_header: () -> Integer
+
+    # Whether the next item is null. Consumes nothing.
+    #
+    # : () -> bool
+    def next_nil?: () -> bool
+
+    # : () -> Integer
+    def buffered_bytes: () -> Integer
+
+    # Drops all buffered input.
+    #
+    # : () -> self
+    def reset: () -> self
+
+    # : () -> Integer
+    private def item_end: () -> Integer
+
+    # : (Integer major, String name) -> Integer
+    private def read_container_head: (Integer major, String name) -> Integer
+
+    # : () -> void
+    private def compact: () -> void
+  end
+end

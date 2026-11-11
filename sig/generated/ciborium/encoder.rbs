@@ -1,0 +1,50 @@
+# Generated from lib/ciborium/encoder.rb with RBS::Inline
+
+module Ciborium
+  # Writes data items one after another into a buffer, for output built in parts.
+  class Encoder
+    @options: EncodeOptions
+
+    @buffer: String
+
+    # Options are those of EncodeOptions.build.
+    #
+    # : (**untyped options) -> void
+    def initialize: (**untyped options) -> void
+
+    # : (untyped object) -> self
+    def write: (untyped object) -> self
+
+    # Writes the head of an array whose length items the caller writes next.
+    #
+    # : (Integer length) -> self
+    def write_array_header: (Integer length) -> self
+
+    # Writes the head of a map whose length key-value pairs the caller writes next.
+    #
+    # : (Integer length) -> self
+    def write_map_header: (Integer length) -> self
+
+    # Writes a tag head; the caller writes the tag content next.
+    #
+    # : (Integer tag) -> self
+    def write_tag: (Integer tag) -> self
+
+    # A copy of everything written so far.
+    #
+    # : () -> String
+    def bytes: () -> String
+
+    # : () -> Integer
+    def size: () -> Integer
+
+    # : () -> bool
+    def empty?: () -> bool
+
+    # : () -> self
+    def clear: () -> self
+
+    # : (Integer major, Integer argument) -> self
+    private def write_head: (Integer major, Integer argument) -> self
+  end
+end
