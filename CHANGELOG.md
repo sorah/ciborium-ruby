@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 (2026-11-11)
 
 - Initial release: a CBOR encoder and decoder backed by a Rust extension, where tags carry meaning only through allowlisted extensions.
 - Built-in extensions for bignums, Time, URI and Regexp.
