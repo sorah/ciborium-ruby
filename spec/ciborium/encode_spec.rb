@@ -71,6 +71,13 @@ RSpec.describe(Ciborium) do
       expect { Ciborium.encode(array) }.to(raise_error(Ciborium::EncodeError, /max_depth/))
     end
 
+    it "raises EncodeError rather than overflowing a Fiber's stack" do
+      array = [0]
+      9_999.times { array = [array] }
+      expect { Fiber.new { Ciborium.encode(array, max_depth: 10_000) }.resume }
+        .to(raise_error(Ciborium::EncodeError, /stack/))
+    end
+
     it "raises EncodeError beyond max_depth" do
       expect(Ciborium.encode([[1]], max_depth: 2)).to(eq(hex("818101")))
       expect { Ciborium.encode([[1]], max_depth: 1) }.to(raise_error(Ciborium::EncodeError))

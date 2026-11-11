@@ -5,6 +5,7 @@
 - Decode every NaN to `Float::NAN`. Repeated NaN map keys are now duplicate keys, instead of costing time quadratic in their number.
 - Fix decoding when GC compaction runs mid-decode, such as under `GC.auto_compact` or inside an extension, which could raise a spurious duplicate key error or crash.
 - `Decoder#read_array_header` and `#read_map_header` follow `profile: :ctap2`, rejecting heads not in their shortest form.
+- Raise `EncodeError` when nesting would overflow the machine stack, as it could inside a Fiber at a high `max_depth`.
 
 ## 0.1.0 (2026-11-11)
 

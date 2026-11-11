@@ -60,6 +60,14 @@ impl<'a> Encoder<'a> {
                 self.max_depth
             )));
         }
+        // A Fiber's machine stack can run out well before max_depth, and Ruby recovers from
+        // overflowing it by longjmp across these frames.
+        // SAFETY: the GVL is held.
+        if unsafe { rb_sys::ruby_stack_check() } != 0 {
+            return Err(crate::error::Error::Encode(
+                "nesting exceeds the available stack".to_owned(),
+            ));
+        }
         if value.is_nil() {
             return self.push(ciborium_ll::Header::Simple(22));
         }
