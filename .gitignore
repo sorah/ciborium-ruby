@@ -22,8 +22,6 @@
 # Installed by `rbs collection install`; the lock file is what is checked in.
 /.gem_rbs_collection/
 
-# Resolved per downstream checkout in CI.
-/spec/downstream/Gemfile.lock
 
 # Crate license texts collected into precompiled gems by rake gem:native.
 /licenses/

@@ -7,8 +7,12 @@ on:
 permissions:
   contents: read
 
+# These jobs build what the release publishes, so they restore no cache: a cache entry can be
+# written by any earlier run on the default branch.
+
 env:
-  RUBY_BUILD_TAG: v20260917
+  # ruby-build v20260917
+  RUBY_BUILD_COMMIT: 01800b0594bbac54feab233b5bd9a3215fc2ff65
 
 jobs:
   # Platforms with a runner of their own build natively, once per Ruby.
@@ -53,8 +57,6 @@ jobs:
             container: ''
             rust_toolchain: stable-x86_64-pc-windows-gnu
     env:
-      RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: "true"
       RB_SYS_CARGO_PROFILE: release
       MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
@@ -72,17 +74,12 @@ jobs:
           dnf install -y dnf-plugins-core
           dnf config-manager --set-enabled crb
           dnf install -y libyaml-devel openssl-devel zlib-devel libffi-devel readline-devel gdbm-devel clang-devel
-      - name: Restore Ruby
-        if: runner.os == 'Linux'
-        id: ruby-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: /opt/rubies/${{ matrix.ruby }}
-          key: ruby-${{ matrix.platform }}-${{ matrix.ruby }}-${{ matrix.image_tag }}-${{ env.RUBY_BUILD_TAG }}
       - name: Build Ruby
-        if: runner.os == 'Linux' && steps.ruby-cache.outputs.cache-hit != 'true'
+        if: runner.os == 'Linux'
         run: |
-          git clone --depth 1 --branch "$RUBY_BUILD_TAG" https://github.com/rbenv/ruby-build /tmp/ruby-build
+          git init -q /tmp/ruby-build
+          git -C /tmp/ruby-build fetch -q --depth 1 https://github.com/rbenv/ruby-build "$RUBY_BUILD_COMMIT"
+          git -C /tmp/ruby-build checkout -q FETCH_HEAD
           RUBY_CONFIGURE_OPTS=--disable-install-doc /tmp/ruby-build/bin/ruby-build "$RUBY_VERSION" "/opt/rubies/$RUBY_VERSION"
         env:
           RUBY_VERSION: ${{ matrix.ruby }}
@@ -111,7 +108,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master 2026-09-12
         with:
           toolchain: ${{ matrix.rust_toolchain }}
-      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - run: ruby -v && bundle install
       - run: bundle exec rake compile
 
@@ -177,13 +173,10 @@ jobs:
     env:
       # The cross Rubies rb-sys-dock 0.9.130 ships for the minors we carry.
       RUBY_CC_VERSION: 3.3.11:3.4.9:4.0.2
-      RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: "true"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - run: ruby -v && bundle install
       - run: bundle exec rake cross compile
       - name: Check the extensions
@@ -229,7 +222,8 @@ jobs:
       - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
         with:
           ruby-version: '4.0'
-          bundler-cache: true
+          bundler-cache: false
+      - run: bundle install
       # gem:native reads crate license files through cargo metadata.
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master 2026-09-12
         with:

@@ -1,0 +1,5 @@
+# frozen_string_literal: true
+
+# Locked, so the downstream specs CI runs only load gem versions reviewed into this repository.
+require_relative "suite"
+DownstreamSuite.declare(self, "cose-ruby")
