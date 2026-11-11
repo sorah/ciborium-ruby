@@ -1,0 +1,45 @@
+amends "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Config.pkl"
+
+import "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Builtins.pkl"
+
+// vendor/bundle is where setup-ruby installs gems in CI.
+exclude = List("vendor/**")
+
+local linters = new Mapping<String, Step> {
+  ["rubocop"] {
+    glob = List("**/*.rb", "**/*.rake", "Rakefile", "Gemfile", "*.gemspec")
+    check = "bundle exec rubocop --force-exclusion {{files}}"
+    fix = "bundle exec rubocop --force-exclusion --autocorrect {{files}}"
+    batch = true
+  }
+  ["actionlint"] = Builtins.actionlint
+  ["byte-order-marker"] = Builtins.byte_order_marker
+  ["check-added-large-files"] = Builtins.check_added_large_files
+  ["check-merge-conflict"] = Builtins.check_merge_conflict
+  ["check-symlinks"] = Builtins.check_symlinks
+  ["detect-private-key"] = Builtins.detect_private_key
+  ["mise"] = Builtins.mise
+  ["mixed-line-ending"] = Builtins.mixed_line_ending
+  ["newlines"] = Builtins.newlines
+  ["pkl"] = Builtins.pkl
+  ["pkl-format"] = Builtins.pkl_format
+  ["trailing-whitespace"] = Builtins.trailing_whitespace
+  ["zizmor"] = Builtins.zizmor
+}
+
+hooks {
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps {
+      ...linters
+    }
+  }
+  ["fix"] {
+    fix = true
+    steps = linters
+  }
+  ["check"] {
+    steps = linters
+  }
+}

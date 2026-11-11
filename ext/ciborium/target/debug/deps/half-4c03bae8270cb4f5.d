@@ -1,0 +1,13 @@
+/home/sorah/git/github.com/sorah/cbor2/ext/cbor2/target/debug/deps/half-4c03bae8270cb4f5.d: /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/lib.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/bfloat.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/bfloat/convert.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16/arch.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16/arch/x86.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/leading_zeros.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/slice.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/vec.rs
+
+/home/sorah/git/github.com/sorah/cbor2/ext/cbor2/target/debug/deps/libhalf-4c03bae8270cb4f5.rmeta: /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/lib.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/bfloat.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/bfloat/convert.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16/arch.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16/arch/x86.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/leading_zeros.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/slice.rs /home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/vec.rs
+
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/lib.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/bfloat.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/bfloat/convert.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16/arch.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/binary16/arch/x86.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/leading_zeros.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/slice.rs:
+/home/sorah/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/half-2.7.1/src/vec.rs:
