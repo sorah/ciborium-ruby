@@ -2,6 +2,10 @@ pub(crate) const FLAG_SYMBOLIZE_KEYS: u32 = 1;
 pub(crate) const FLAG_LAST_WINS: u32 = 1 << 1;
 pub(crate) const FLAG_CTAP2: u32 = 1 << 2;
 
+// Nested arrays all draw on the same remaining input, so the declared length alone must not size
+// them.
+const PREALLOCATE_LIMIT: usize = 256;
+
 enum Frame {
     Array {
         array: magnus::RArray,
@@ -30,8 +34,10 @@ pub(crate) struct Decoder<'a> {
     // Tag number to a callable taking (tag, content), for allowlisted extensions only.
     handlers: Option<magnus::RHash>,
     stack: Vec<Frame>,
-    // Containers held in `stack` live on the Rust heap, which the GC does not scan.
-    pin: magnus::value::BoxValue<magnus::RArray>,
+    // Containers held in `stack` live on the Rust heap, which the GC does not scan. This array
+    // keeps them reachable, and is itself reachable through the Decoder on the native stack. It
+    // is not registered globally, so a NoMemoryError unwinding past Rust leaves nothing behind.
+    pin: magnus::RArray,
     tagged_class: magnus::RClass,
     simple_class: magnus::RClass,
 }
@@ -56,7 +62,7 @@ impl<'a> Decoder<'a> {
             flags,
             handlers,
             stack: Vec::new(),
-            pin: magnus::value::BoxValue::new(ruby.ary_new()),
+            pin: ruby.ary_new(),
             tagged_class: ciborium.const_get("Tagged")?,
             simple_class: ciborium.const_get("Simple")?,
         })
@@ -64,6 +70,11 @@ impl<'a> Decoder<'a> {
 
     pub(crate) fn pos(&self) -> usize {
         self.cursor.pos()
+    }
+
+    /// The array keeping decoded containers reachable. Callers hold it live until decoding ends.
+    pub(crate) fn pin(&self) -> magnus::RArray {
+        self.pin
     }
 
     /// Decodes the item at the current position and advances past it.
@@ -95,7 +106,8 @@ impl<'a> Decoder<'a> {
                     if len == Some(0) {
                         self.ruby.ary_new().as_value()
                     } else {
-                        let capacity = len.map_or(0, |n| n.min(self.cursor.remaining()));
+                        let capacity = len
+                            .map_or(0, |n| n.min(self.cursor.remaining()).min(PREALLOCATE_LIMIT));
                         let array = self.ruby.ary_new_capa(capacity);
                         self.open(Frame::Array {
                             array,

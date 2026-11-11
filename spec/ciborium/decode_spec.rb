@@ -97,6 +97,21 @@ RSpec.describe(Ciborium) do
       expect { Ciborium.decode(hex("00"), duplicate_keys: :first_wins) }.to(raise_error(ArgumentError))
     end
 
+    it "reserves memory for nested arrays by what the input holds, not what they declare" do
+      require "objspace"
+      huge_array = "\x9b\x7f\xff\xff\xff\xff\xff\xff\xff".b
+      input = (huge_array * 50) + ("\x00".b * 100_000)
+      GC.start
+      GC.disable
+      begin
+        before = ObjectSpace.memsize_of_all(Array)
+        expect { Ciborium.decode(input) }.to(raise_error(Ciborium::IncompleteError))
+        expect(ObjectSpace.memsize_of_all(Array) - before).to(be < 4_000_000)
+      ensure
+        GC.enable
+      end
+    end
+
     it "builds nested containers correctly under GC stress" do
       input = hex("a36161830182026378797aa1616b9f0102ff6162d863826170617161637f61786179ff")
       expected = Ciborium.decode(input)

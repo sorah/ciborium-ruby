@@ -30,6 +30,7 @@ fn decode(
         let mut decoder =
             crate::decode::Decoder::new(ruby, bytes, offset, max_depth, flags, handlers)?;
         let value = decoder.decode()?;
+        std::hint::black_box(decoder.pin());
         Ok((value, decoder.pos()))
     })
     .map_err(|error: crate::error::Error| error.into_ruby(ruby))
